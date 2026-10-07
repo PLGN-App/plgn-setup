@@ -16,6 +16,17 @@ function isFile(p) {
   }
 }
 
+// Windows has no execute bit (PATHEXT decides there); elsewhere a file must be executable.
+function isExecutable(p, platform) {
+  if (platform === "win32") return true;
+  try {
+    fs.accessSync(p, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function which(name, { platform = process.platform, env = process.env } = {}) {
   const raw = env.PATH ?? env.Path ?? "";
   const dirs = raw.split(path.delimiter).filter(Boolean);
@@ -28,7 +39,7 @@ export function which(name, { platform = process.platform, env = process.env } =
   for (const dir of dirs) {
     for (const n of names) {
       const full = path.join(dir, n);
-      if (isFile(full)) return full;
+      if (isFile(full) && isExecutable(full, platform)) return full;
     }
   }
   return null;
@@ -84,7 +95,7 @@ export function makeContext({ home, platform, env, exec, now } = {}) {
   platform = platform ?? process.platform;
   env = env ?? process.env;
   let appData;
-  if (platform === "win32") appData = env.APPDATA ?? path.join(home, "AppData", "Roaming");
+  if (platform === "win32") appData = env.APPDATA || path.join(home, "AppData", "Roaming");
   else if (platform === "darwin") appData = path.join(home, "Library", "Application Support");
   else appData = env.XDG_CONFIG_HOME || path.join(home, ".config");
   const whichIn = (name) => which(name, { platform, env });

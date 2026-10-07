@@ -55,3 +55,10 @@ test("every Arabic phrase holds Arabic letters when its English twin has words o
     assert.match(phrases.ar[key], /[؀-ۿ]/, `ar.${key}`);
   }
 });
+
+test("Arabic uses the feminine verb before feminine nouns", () => {
+  for (const [key, text] of Object.entries(phrases.ar)) {
+    assert.doesNotMatch(text, /(سيتم|يتم) (إضافة|كتابة)/, `ar.${key}`);
+  }
+  assert.ok(phrases.ar.pick.includes("ربطها"));
+});

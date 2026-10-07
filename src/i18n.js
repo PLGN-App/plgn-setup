@@ -53,7 +53,7 @@ export const phrases = {
       "  npx plgn-setup [tool] [--yes] [--dry-run] [--lang en|ar]\n" +
       "  npx plgn-setup doctor\n" +
       "الأدوات: {hosts}",
-    pick: "أي أدوات تريد أن تحصل على plgn؟",
+    pick: "أي أدوات تريد ربطها بـ plgn؟",
     detected: "موجودة على هذا الجهاز",
     noneFound: "لم نجد أي أداة ذكاء اصطناعي هنا. اذكر واحدة: npx plgn-setup <tool>. الأدوات: {hosts}",
     needYes: "هذه ليست نافذة تفاعلية. أضف --yes للإعداد: {hosts}",
@@ -64,12 +64,12 @@ export const phrases = {
     added: "{label}: تمت إضافة plgn إلى {file}",
     updated: "{label}: تم تحديث إعداد plgn في {file}",
     same: "{label}: الإعداد موجود من قبل، لم يتغير شيء",
-    wouldAdd: "{label}: سيتم إضافة plgn إلى {file}",
+    wouldAdd: "{label}: ستتم إضافة plgn إلى {file}",
     wouldUpdate: "{label}: سيتم تحديث إعداد plgn في {file}",
     backup: "نسخة احتياطية من الملف القديم: {file}",
     notReadable: "{label}: لم نستطع قراءة {file} فتركناه كما هو. أضف هذا يدويًا:",
     notSafe: "{label}: لم نستطع إضافة plgn إلى {file} دون لمس باقي الأسطر فتركناه كما هو. أضف هذا يدويًا:",
-    dryRun: "تجربة فقط: لم يتم كتابة أي شيء.",
+    dryRun: "تجربة فقط: لم تتم كتابة أي شيء.",
     nextTitle: "بعد ذلك، سجّل الدخول مرة واحدة في كل أداة:",
     "next.runCommand": "{label}: شغّل {cmd}",
     "next.typeInside": "{label}: افتحها واكتب {cmd}",

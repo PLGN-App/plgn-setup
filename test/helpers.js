@@ -49,7 +49,7 @@ export function tempHome({ platform = process.platform } = {}) {
     exists: (rel) => fs.existsSync(abs(rel)),
     addBin(name) {
       const file = path.join(binDir, platform === "win32" ? `${name}.cmd` : name);
-      fs.writeFileSync(file, platform === "win32" ? "@echo off\r\n" : "#!/bin/sh\n");
+      fs.writeFileSync(file, platform === "win32" ? "@echo off\r\n" : "#!/bin/sh\n", { mode: 0o755 });
       return file;
     },
     files: () => walk(home),

@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import path from "node:path";
 import { makeContext, which, runFile } from "../src/context.js";
 import { tempHome } from "./helpers.js";
@@ -49,6 +50,24 @@ test("which returns a fake binary on PATH and null when it is missing", () => {
     assert.equal(which("claude", { platform: "linux", env: {} }), null);
   } finally {
     w.cleanup();
+    l.cleanup();
+  }
+});
+
+test("appData falls back when APPDATA is empty", () => {
+  const ctx = makeContext({ home: "/h", platform: "win32", env: { APPDATA: "" } });
+  assert.equal(ctx.appData, path.join("/h", "AppData", "Roaming"));
+});
+
+test("which skips a file without the execute bit outside Windows", { skip: process.platform === "win32" }, () => {
+  const l = tempHome({ platform: "linux" });
+  try {
+    const file = l.addBin("codex");
+    fs.chmodSync(file, 0o644);
+    assert.equal(l.ctx.which("codex"), null);
+    fs.chmodSync(file, 0o755);
+    assert.equal(l.ctx.which("codex"), file);
+  } finally {
     l.cleanup();
   }
 });
