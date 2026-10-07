@@ -31,10 +31,18 @@ export function backupFile(file, { now }) {
 
 export function writeConfig(file, text) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  const tmp = `${file}.plgn-tmp-${process.pid}`;
+  // Write through a symlink to the real file, and keep the file's permissions (often 0600: it can hold API keys).
+  let target = file;
+  let mode = null;
+  if (fs.existsSync(file)) {
+    target = fs.realpathSync(file);
+    mode = fs.statSync(target).mode & 0o777;
+  }
+  const tmp = `${target}.plgn-tmp-${process.pid}`;
   try {
     fs.writeFileSync(tmp, text, "utf8");
-    fs.renameSync(tmp, file);
+    if (mode !== null) fs.chmodSync(tmp, mode);
+    fs.renameSync(tmp, target);
   } catch (e) {
     fs.rmSync(tmp, { force: true });
     throw e;

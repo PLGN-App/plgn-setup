@@ -65,3 +65,22 @@ test("writeConfig creates missing folders and leaves no temp file behind", () =>
     h.cleanup();
   }
 });
+
+test("writeConfig keeps the file mode and follows a symlink", { skip: process.platform === "win32" }, () => {
+  const h = tempHome();
+  try {
+    const real = path.join(h.home, "dotfiles", "real.json");
+    fs.mkdirSync(path.dirname(real), { recursive: true });
+    fs.writeFileSync(real, "old");
+    fs.chmodSync(real, 0o600);
+    const link = path.join(h.home, "conf.json");
+    fs.symlinkSync(real, link);
+    writeConfig(link, "new");
+    assert.ok(fs.lstatSync(link).isSymbolicLink());
+    assert.equal(fs.readFileSync(real, "utf8"), "new");
+    assert.equal(fs.statSync(real).mode & 0o777, 0o600);
+    assert.deepEqual(fs.readdirSync(path.dirname(real)), ["real.json"]);
+  } finally {
+    h.cleanup();
+  }
+});

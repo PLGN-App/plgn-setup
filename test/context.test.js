@@ -21,6 +21,11 @@ test("makeContext without a home throws under node --test", () => {
   assert.throws(() => makeContext({ platform: "linux" }), /home/i);
 });
 
+test("makeContext without an env throws under node --test", () => {
+  assert.throws(() => makeContext({ home: "/h" }), /env/i);
+  assert.throws(() => makeContext({ home: "/h", platform: "linux" }), /env/i);
+});
+
 test("appData follows the platform", () => {
   const mk = (platform, env) => makeContext({ home: "/h", platform, env }).appData;
   assert.equal(mk("win32", { APPDATA: "C:\\Roam" }), "C:\\Roam");

@@ -44,8 +44,10 @@ export function runFile(file, args = [], { timeout = 5000 } = {}) {
     let child;
     try {
       // npm installs claude, codex and gemini as .cmd shims; Node 20 refuses to spawn those without a shell.
+      // The command line is built here and no args array is passed: Node 24 warns (DEP0190) otherwise.
+      // The args are fixed strings chosen by this program, never user input.
       child = isCmd
-        ? spawn(`"${file}"`, args, { shell: true, windowsHide: true })
+        ? spawn([`"${file}"`, ...args].join(" "), { shell: true, windowsHide: true })
         : spawn(file, args, { windowsHide: true });
     } catch (e) {
       resolve({ code: -1, stdout: "", stderr: String(e?.message ?? e) });
@@ -74,6 +76,9 @@ export function runFile(file, args = [], { timeout = 5000 } = {}) {
 export function makeContext({ home, platform, env, exec, now } = {}) {
   if (home === undefined && underTest()) {
     throw new Error("makeContext needs an explicit home under node --test (NODE_TEST_CONTEXT is set)");
+  }
+  if (env === undefined && underTest()) {
+    throw new Error("makeContext needs an explicit env under node --test (NODE_TEST_CONTEXT is set)");
   }
   home = home ?? os.homedir();
   platform = platform ?? process.platform;
