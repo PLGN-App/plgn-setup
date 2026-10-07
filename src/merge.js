@@ -30,11 +30,11 @@ export function sameValue(a, b) {
   return JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
 }
 
-const BOM = "﻿";
+const BOM = "\uFEFF";
 const blank = (text) => text == null || text.trim() === "";
 
 function parseJson(text) {
-  const body = (text ?? "").replace(/^﻿/, "");
+  const body = (text ?? "").replace(/^\uFEFF/, "");
   if (body.trim() === "") return {};
   try {
     return JSON.parse(body);
@@ -67,14 +67,23 @@ function walk(root, path, create) {
   return node;
 }
 
+// One pass over a JSON string or a number; strings are matched so their digits are skipped.
+const NUMBER_OR_STRING = /"(?:[^"\\]|\\.)*"|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g;
+
 export function mergeJson(text, { path, name, entry }) {
   const root = parseJson(text);
   const container = walk(root, path, true);
   if (sameValue(container[name], entry)) return { text, change: "same" };
+  const body = (text ?? "").replace(/^\uFEFF/, "");
+  // Re-serialising would write these numbers differently (1.0, 1e5, past 2^53); refuse instead.
+  for (const m of body.match(NUMBER_OR_STRING) ?? []) {
+    if (m[0] !== '"' && String(Number(m)) !== m) {
+      throw new MergeError("UNSAFE", `A number in the file would be rewritten (${m}); nothing was written.`);
+    }
+  }
   const existed = Object.hasOwn(container, name);
   container[name] = entry;
 
-  const body = (text ?? "").replace(/^﻿/, "");
   const indent = body.match(/^([ \t]+)\S/m)?.[1] ?? "  ";
   const eol = body.includes("\r\n") ? "\r\n" : "\n";
   let out = JSON.stringify(root, null, indent) + "\n";
@@ -86,7 +95,9 @@ export function mergeJson(text, { path, name, entry }) {
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 export function mergeToml(text, { path, name, entry }) {
-  const original = blank(text) ? "" : text;
+  // A BOM stays in front; everything below works on the text after it.
+  const bom = !blank(text) && text.startsWith(BOM) ? BOM : "";
+  const original = blank(text) ? "" : text.slice(bom.length);
   const data = parseToml(original);
   const container = walk(data, path, false);
   const current = container?.[name];
@@ -104,7 +115,7 @@ export function mergeToml(text, { path, name, entry }) {
 
   const lines = original.split(/(?<=\n)/);
   const headerRe = new RegExp(
-    "^\\s*\\[\\s*" + [...path, name].map(escapeRe).join("\\s*\\.\\s*") + "\\s*\\]\\s*(#.*)?\\r?\\n?$"
+    "^[ \\t]*\\[\\s*" + [...path, name].map(escapeRe).join("\\s*\\.\\s*") + "\\s*\\]\\s*(#.*)?\\r?\\n?$"
   );
   const at = lines.findIndex((l) => headerRe.test(l));
 
@@ -142,7 +153,7 @@ export function mergeToml(text, { path, name, entry }) {
   if (!sameValue(mine, entry) || !sameValue(before, after)) {
     throw new MergeError("UNSAFE", "The edit would change more than plgn; nothing was written.");
   }
-  return { text: next, change: at >= 0 ? "updated" : "added" };
+  return { text: bom + next, change: at >= 0 ? "updated" : "added" };
 }
 
 function pruneEmpty(root, path) {

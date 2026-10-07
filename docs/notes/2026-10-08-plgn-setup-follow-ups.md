@@ -4,9 +4,9 @@
 
 - [x] A. `src/hosts/file-host.js`: doctor reports `doctor.entryWrong` even when the URL matches but another key differs (e.g., host UI adds `disabled`). Use `doctor.entryDiffers` instead when oldUrl(found) equals oldUrl(entry). Keep the row red.
 
-- [ ] B. `src/merge.js`: TOML header regex `^\\s*` matches U+FEFF (BOM), so BOM is dropped when swapping. Use `^[ \\t]*` instead and write BOM as "﻿".
+- [x] B. `src/merge.js`: TOML header regex `^\\s*` matches U+FEFF (BOM), so BOM is dropped when swapping. Use `^[ \\t]*` instead and write BOM as "﻿".
 
-- [ ] C. `src/merge.js`: JSON merge re-serialises the whole file, changing number form (1.0→1) and rounding large integers. Optional: throw UNSAFE when JSON.stringify(JSON.parse(original)) would not round-trip, or document in README.
+- [x] C. `src/merge.js`: JSON merge re-serialises the whole file, changing number form (1.0→1) and rounding large integers. Optional: throw UNSAFE when JSON.stringify(JSON.parse(original)) would not round-trip, or document in README.
 
 - [x] D. `src/hosts/file-host.js`: apply only maps MergeError to a Result; other I/O errors throw (EACCES, EISDIR, EPERM on Windows). Either catch I/O errors and return `{ status: "error", error: "IO", detail }`, or ensure Task 11's CLI wraps each host's apply in try/catch.
 

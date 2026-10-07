@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { parse } from "smol-toml";
 import { MergeError, mergeJson, mergeToml, readEntry, sameValue } from "../src/merge.js";
 
@@ -155,4 +156,36 @@ test("sameValue ignores key order and prototypes", () => {
   assert.equal(sameValue({ a: [1, 2] }, { a: [2, 1] }), false);
   assert.equal(sameValue({ a: 1 }, { a: 1, b: 2 }), false);
   assert.equal(sameValue(undefined, {}), false);
+});
+
+test("mergeToml keeps a BOM when it swaps a plgn table on the first line", () => {
+  const input = '﻿[mcp_servers.plgn]\nurl = "https://old.example/mcp"\n';
+  const r = mergeToml(input, tomlOpts);
+  assert.equal(r.change, "updated");
+  assert.ok(r.text.startsWith("﻿[mcp_servers.plgn]"));
+  assert.equal(r.text.split(entry.url).length - 1, 1);
+  const again = mergeToml(r.text, tomlOpts);
+  assert.equal(again.change, "same");
+  assert.equal(again.text, r.text);
+});
+
+test("mergeToml keeps a BOM when it appends", () => {
+  const r = mergeToml('﻿model = "x"\n', tomlOpts);
+  assert.equal(r.change, "added");
+  assert.ok(r.text.startsWith('﻿model = "x"\n'));
+  assert.equal(parse(r.text.slice(1)).mcp_servers.plgn.url, entry.url);
+});
+
+test("mergeJson throws UNSAFE when a number would be rewritten", () => {
+  for (const input of ['{"a": 1.0}', '{"a": 1e5}', '{"a": 12345678901234567890}']) {
+    throwsMerge(() => mergeJson(input, jsonOpts), "UNSAFE");
+  }
+  const r = mergeJson('{"a": 1.5, "b": -3, "c": "1.0", "d": 0}', jsonOpts);
+  assert.equal(r.change, "added");
+  assert.deepEqual(JSON.parse(r.text).a, 1.5);
+});
+
+test("merge.js spells the BOM as an escape", () => {
+  const source = fs.readFileSync(new URL("../src/merge.js", import.meta.url), "utf8");
+  assert.equal(source.includes("﻿"), false);
 });
