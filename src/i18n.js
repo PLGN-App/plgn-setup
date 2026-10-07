@@ -47,6 +47,12 @@ export const phrases = {
     "next.cursor": "Cursor: restart it, open Settings, then MCP, and sign in to plgn when it asks",
     "next.windsurf": "Windsurf: restart it, open the MCP servers list in Cascade, and sign in to plgn when it asks",
     "next.vscode": "VS Code: open the Command Palette, run MCP: List Servers, pick plgn, press Start and allow the sign-in",
+    "next.claudeCode": "Claude Code: open it, type /mcp, pick plgn and log in",
+    "next.claudeCodeManual": "Claude Code is not on PATH here. Run these two lines:",
+    "doctor.pluginOk": "plgn plugin installed",
+    "doctor.pluginMissing": "plgn plugin not installed",
+    "doctor.pluginOff": "plgn plugin is turned off: run {cmd}",
+    "doctor.pluginUnknown": "could not list the plugins",
     // en: end
   },
   ar: {
@@ -91,6 +97,12 @@ export const phrases = {
     "next.cursor": "Cursor: أعد تشغيله، ثم افتح Settings ثم MCP، وسجّل الدخول إلى plgn عندما يطلب ذلك",
     "next.windsurf": "Windsurf: أعد تشغيله، ثم افتح قائمة خوادم MCP في Cascade، وسجّل الدخول إلى plgn عندما يطلب ذلك",
     "next.vscode": "VS Code: افتح Command Palette، وشغّل MCP: List Servers، واختر plgn، واضغط Start ووافق على تسجيل الدخول",
+    "next.claudeCode": "Claude Code: افتحه، واكتب /mcp، واختر plgn وسجّل الدخول",
+    "next.claudeCodeManual": "Claude Code غير موجود في PATH هنا. شغّل هذين السطرين:",
+    "doctor.pluginOk": "إضافة plgn مثبتة",
+    "doctor.pluginMissing": "إضافة plgn غير مثبتة",
+    "doctor.pluginOff": "إضافة plgn متوقفة: شغّل {cmd}",
+    "doctor.pluginUnknown": "لم نستطع عرض قائمة الإضافات",
     // ar: end
   },
 };
