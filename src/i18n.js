@@ -53,6 +53,8 @@ export const phrases = {
     "doctor.pluginMissing": "plgn plugin not installed",
     "doctor.pluginOff": "plgn plugin is turned off: run {cmd}",
     "doctor.pluginUnknown": "could not list the plugins",
+    "next.claudeDesktop": "Claude Desktop: open Customize, Connectors, Add custom connector, name it plgn and paste {url}",
+    "doctor.checkByHand": "check Customize, Connectors by hand",
     // en: end
   },
   ar: {
@@ -103,6 +105,8 @@ export const phrases = {
     "doctor.pluginMissing": "إضافة plgn غير مثبتة",
     "doctor.pluginOff": "إضافة plgn متوقفة: شغّل {cmd}",
     "doctor.pluginUnknown": "لم نستطع عرض قائمة الإضافات",
+    "next.claudeDesktop": "Claude Desktop: افتح Customize ثم Connectors ثم Add custom connector، وسمّه plgn والصق {url}",
+    "doctor.checkByHand": "تحقق من Customize ثم Connectors يدويًا",
     // ar: end
   },
 };
