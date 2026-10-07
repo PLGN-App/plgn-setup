@@ -34,6 +34,15 @@ export const phrases = {
     "next.typeInside": "{label}: open it and type {cmd}",
     ran: "{label}: ran {cmd}",
     failed: "{label}: {cmd} failed: {detail}",
+    "doctor.notFound": "not found on this computer",
+    "doctor.fileFound": "{file}",
+    "doctor.fileMissing": "no config file at {file}",
+    "doctor.entryOk": "plgn is set to {url}",
+    "doctor.entryMissing": "no plgn entry",
+    "doctor.entryWrong": "the plgn entry has an old address: {url}",
+    "doctor.unreadable": "could not read {file}",
+    "doctor.version": "{version}",
+    "doctor.noBinary": "{bin} is not on PATH",
     // en: end
   },
   ar: {
@@ -65,6 +74,15 @@ export const phrases = {
     "next.typeInside": "{label}: افتحها واكتب {cmd}",
     ran: "{label}: تم تشغيل {cmd}",
     failed: "{label}: فشل {cmd}: {detail}",
+    "doctor.notFound": "غير موجودة على هذا الجهاز",
+    "doctor.fileFound": "{file}",
+    "doctor.fileMissing": "لا يوجد ملف إعداد في {file}",
+    "doctor.entryOk": "plgn مضبوط على {url}",
+    "doctor.entryMissing": "لا يوجد إعداد plgn",
+    "doctor.entryWrong": "إعداد plgn فيه عنوان قديم: {url}",
+    "doctor.unreadable": "لم نستطع قراءة {file}",
+    "doctor.version": "{version}",
+    "doctor.noBinary": "{bin} غير موجود في PATH",
     // ar: end
   },
 };
