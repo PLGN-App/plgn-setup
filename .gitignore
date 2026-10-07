@@ -1,0 +1,3 @@
+node_modules/
+*.plgn-backup-*
+.DS_Store

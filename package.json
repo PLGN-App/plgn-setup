@@ -1,0 +1,12 @@
+{
+  "name": "plgn-setup",
+  "version": "0.1.0",
+  "description": "One command that connects your AI tool to plgn.",
+  "type": "module",
+  "bin": { "plgn-setup": "bin/plgn-setup.js" },
+  "engines": { "node": ">=20" },
+  "scripts": { "test": "node --test" },
+  "license": "MIT",
+  "repository": "https://github.com/PLGN-App/plgn-setup",
+  "homepage": "https://useplgn.com"
+}
