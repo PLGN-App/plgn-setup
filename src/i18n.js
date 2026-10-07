@@ -46,6 +46,7 @@ export const phrases = {
     "doctor.entryDiffers": "the plgn entry has the right address but other settings differ",
     "next.cursor": "Cursor: restart it, open Settings, then MCP, and sign in to plgn when it asks",
     "next.windsurf": "Windsurf: restart it, open the MCP servers list in Cascade, and sign in to plgn when it asks",
+    "next.vscode": "VS Code: open the Command Palette, run MCP: List Servers, pick plgn, press Start and allow the sign-in",
     // en: end
   },
   ar: {
@@ -89,6 +90,7 @@ export const phrases = {
     "doctor.entryDiffers": "إعداد plgn عنوانه صحيح لكن إعدادات أخرى فيه مختلفة",
     "next.cursor": "Cursor: أعد تشغيله، ثم افتح Settings ثم MCP، وسجّل الدخول إلى plgn عندما يطلب ذلك",
     "next.windsurf": "Windsurf: أعد تشغيله، ثم افتح قائمة خوادم MCP في Cascade، وسجّل الدخول إلى plgn عندما يطلب ذلك",
+    "next.vscode": "VS Code: افتح Command Palette، وشغّل MCP: List Servers، واختر plgn، واضغط Start ووافق على تسجيل الدخول",
     // ar: end
   },
 };
