@@ -44,19 +44,24 @@ export function makeFileHost(spec) {
 
     async apply(ctx, { dryRun }) {
       const file = spec.configPath(ctx);
+      // backupFile returns null when there is no file yet; kept outside the try so a failed write still names it.
+      let backup = null;
       try {
         const merged = merge(readText(file));
         if (merged.change === "same") return { id, status: "same", dryRun, file };
         if (dryRun) return { id, status: merged.change, dryRun, file };
-        // backupFile returns null when there is no file yet.
-        const backup = backupFile(file, { now: ctx.now() });
+        backup = backupFile(file, { now: ctx.now() });
         writeConfig(file, merged.text);
         return { id, status: merged.change, dryRun, file, backup };
       } catch (e) {
-        // MergeError first: its code is a string too.
         if (e instanceof MergeError) return { id, status: "error", dryRun, error: e.code, detail: e.message, file };
-        // A file-system error (EACCES, EISDIR, EPERM) becomes a result; a bug without a code still throws.
-        if (typeof e?.code === "string") return { id, status: "error", dryRun, error: "IO", detail: e.message, file };
+        // Only a real file-system error (EACCES, EISDIR, EPERM: a string code AND a syscall) becomes a result.
+        // Node's own ERR_* errors have a code but no syscall, so a bug such as an undefined path still throws.
+        if (typeof e?.code === "string" && typeof e?.syscall === "string") {
+          const r = { id, status: "error", dryRun, error: "IO", detail: e.message, file };
+          if (backup) r.backup = backup;
+          return r;
+        }
         throw e;
       }
     },

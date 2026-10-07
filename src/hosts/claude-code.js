@@ -3,8 +3,10 @@
 // Source: https://raw.githubusercontent.com/PLGN-App/PLGN-CLAUDE/main/.claude-plugin/marketplace.json (checked 2026-10-08)
 // Docs: `claude plugin list --json` prints an array of { id: "<plugin>@<marketplace>", enabled, ... };
 // marketplace.json names the marketplace "plgn" and the plugin "plgn", so the install is plgn@plgn;
-// the plugin's server logs in with /mcp inside claude. The docs page does not show `marketplace add`; its
-// form comes from the plan and needs the live check.
+// the plugin's server logs in with /mcp inside claude. `claude plugin marketplace add <owner/repo>` is the
+// documented form (a GitHub owner/repo source); adding a marketplace that is already there exits 0.
+// `plugin list --json` also prints pseudo-ids (<name>@skills-dir, <name>@inline, <name>@synced) for local
+// skills folders and the like; those are not the marketplace plugin and never count.
 import fs from "node:fs";
 import path from "node:path";
 import { MARKETPLACE, PLUGIN, PLUGIN_ID } from "../constants.js";
@@ -16,6 +18,10 @@ const bin = "claude";
 const commands = [`claude plugin marketplace add ${MARKETPLACE}`, `claude plugin install ${PLUGIN_ID}`];
 
 const detect = (ctx) => fs.existsSync(path.join(ctx.home, ".claude")) || Boolean(ctx.which(bin));
+
+// plgn@plgn exactly, or plgn from another marketplace; never a pseudo-id.
+const PSEUDO = /@(skills-dir|inline|synced)$/;
+const isPlgn = (id) => id === PLUGIN_ID || (id.startsWith(`${PLUGIN}@`) && !PSEUDO.test(id));
 
 // "on", "off", "missing" or "unknown"; the read-only list is the only thing this runs.
 async function pluginState(ctx) {
@@ -31,7 +37,7 @@ async function pluginState(ctx) {
     return "unknown";
   }
   if (!Array.isArray(list)) return "unknown";
-  const mine = list.filter((p) => typeof p?.id === "string" && p.id.startsWith(`${PLUGIN}@`));
+  const mine = list.filter((p) => typeof p?.id === "string" && isPlgn(p.id));
   // Only installs that cover this person count: user-wide ones, or a project/local one for this folder.
   const here = path.resolve(ctx.cwd ?? process.cwd());
   const counts = (p) =>
@@ -61,7 +67,7 @@ export default {
     if (result?.status === "manual") {
       return [t(lang, "next.claudeCodeManual"), ...(result.commands ?? commands).map((c) => `  ${c}`)].join("\n");
     }
-    return t(lang, "next.claudeCode");
+    return t(lang, "next.claudeCode", { cmd: "/mcp" });
   },
 
   async apply(ctx, { dryRun }) {

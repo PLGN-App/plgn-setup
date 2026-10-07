@@ -10,12 +10,13 @@ export async function checkReach(fetchFn) {
     if (res.ok) return { id: "plgn", check: "reach", status: "ok", key: "doctor.reachOk", vars: { url } };
     return { id: "plgn", check: "reach", status: "fail", key: "doctor.reachFail", vars: { url, detail: String(res.status) } };
   } catch (e) {
+    // fetch says only "fetch failed"; the real reason (ENOTFOUND, ECONNREFUSED) sits in e.cause.
     return {
       id: "plgn",
       check: "reach",
       status: "fail",
       key: "doctor.reachFail",
-      vars: { url, detail: String(e?.message ?? e) },
+      vars: { url, detail: String(e?.cause?.code ?? e?.message ?? e) },
     };
   }
 }
@@ -40,6 +41,12 @@ export async function runDoctor(ctx, { hosts, fetch: fetchFn }) {
 }
 
 const MARKS = { ok: "✔", fail: "✘", skip: "–" };
+const FIX_CMD = "npx plgn-setup";
+
+// Columns line up by what is seen: combining marks (Arabic shadda, fatha) and zero-width characters take no room.
+const INVISIBLE = /\p{Mn}|[​-‏⁠﻿]/gu;
+export const displayWidth = (s) => [...s.replace(INVISIBLE, "")].length;
+const padTo = (s, width) => s + " ".repeat(Math.max(0, width - displayWidth(s)));
 
 export function renderTable(rows, { lang, color, labels }) {
   const pc = picocolors.createColors(color);
@@ -51,13 +58,17 @@ export function renderTable(rows, { lang, color, labels }) {
     text: t(lang, r.key, r.vars),
   }));
   // Pad the plain text first, then colour only the one-character mark: escape codes never count.
-  const nameWidth = Math.max(0, ...cells.map((c) => c.name.length));
-  const checkWidth = Math.max(0, ...cells.map((c) => c.check.length));
+  const nameWidth = Math.max(0, ...cells.map((c) => displayWidth(c.name)));
+  const checkWidth = Math.max(0, ...cells.map((c) => displayWidth(c.check)));
   const lines = cells.map(
     (c) =>
-      `${c.name.padEnd(nameWidth)}  ${c.check.padEnd(checkWidth)}  ${paint[c.row.status](MARKS[c.row.status])}  ${c.text}`,
+      `${padTo(c.name, nameWidth)}  ${padTo(c.check, checkWidth)}  ${paint[c.row.status](MARKS[c.row.status])}  ${c.text}`,
   );
   const failed = rows.filter((r) => r.status === "fail").length;
-  lines.push(failed === 0 ? t(lang, "doctor.summaryOk") : t(lang, "doctor.summaryFail", { count: String(failed) }));
+  lines.push(
+    failed === 0
+      ? t(lang, "doctor.summaryOk")
+      : t(lang, "doctor.summaryFail", { count: String(failed), cmd: FIX_CMD }),
+  );
   return lines.join("\n");
 }

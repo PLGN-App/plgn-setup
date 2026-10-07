@@ -1,12 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { MCP_URL } from "../src/constants.js";
+import { makeContext } from "../src/context.js";
 import gemini from "../src/hosts/gemini.js";
 import vscode from "../src/hosts/vscode.js";
 import { detectCases, mergeCases } from "./host-cases.js";
-import { tempHome } from "./helpers.js";
+import { fakeExec, tempHome } from "./helpers.js";
 
 const geminiOthers =
   JSON.stringify({ theme: "Default", mcpServers: { docs: { command: "npx" } } }, null, 2) + "\n";
@@ -20,6 +22,8 @@ mergeCases(gemini, {
   old: oldFor("httpUrl", "mcpServers"),
   broken: '{ "mcpServers": ',
 });
+// vscode keeps the address under "url" (entry: { type: "http", url }); the old-entry case uses the same key.
+assert.equal(Object.hasOwn(vscode.entry, "url"), true);
 mergeCases(vscode, {
   others: vscodeOthers,
   old: oldFor("url", "servers"),
@@ -29,26 +33,27 @@ detectCases(gemini, { dirs: [".gemini"], bin: "gemini" });
 detectCases(vscode, { dirs: ["AppData/Roaming/Code/User"], bin: "code", platform: "win32" });
 
 test("vscode configPath follows the platform", () => {
-  const win = tempHome({ platform: "win32" });
-  const mac = tempHome({ platform: "darwin" });
-  const lin = tempHome({ platform: "linux" });
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "plgn-setup-vscode-"));
+  const ctx = (platform, env) => makeContext({ home, platform, env, exec: fakeExec(), now: () => new Date(0) });
   try {
-    assert.equal(vscode.configPath(win.ctx), path.join(win.ctx.appData, "Code", "User", "mcp.json"));
-    assert.ok(win.ctx.appData.includes(path.join("AppData", "Roaming")) || win.ctx.env.APPDATA);
-    assert.equal(
-      vscode.configPath(mac.ctx),
-      path.join(mac.home, "Library", "Application Support", "Code", "User", "mcp.json"),
-    );
-    assert.equal(vscode.configPath(lin.ctx), path.join(lin.ctx.appData, "Code", "User", "mcp.json"));
-    lin.ctx.env.XDG_CONFIG_HOME = path.join(lin.home, "xdg");
-    assert.equal(
-      vscode.configPath({ ...lin.ctx, appData: lin.ctx.env.XDG_CONFIG_HOME }),
-      path.join(lin.home, "xdg", "Code", "User", "mcp.json"),
-    );
+    const cases = [
+      // [platform, env, expected]
+      ["win32", { APPDATA: path.join(home, "Roaming") }, path.join(home, "Roaming", "Code", "User", "mcp.json")],
+      ["win32", {}, path.join(home, "AppData", "Roaming", "Code", "User", "mcp.json")],
+      ["darwin", {}, path.join(home, "Library", "Application Support", "Code", "User", "mcp.json")],
+      [
+        "darwin",
+        { XDG_CONFIG_HOME: path.join(home, "xdg") },
+        path.join(home, "Library", "Application Support", "Code", "User", "mcp.json"),
+      ],
+      ["linux", { XDG_CONFIG_HOME: path.join(home, "xdg") }, path.join(home, "xdg", "Code", "User", "mcp.json")],
+      ["linux", {}, path.join(home, ".config", "Code", "User", "mcp.json")],
+    ];
+    for (const [platform, env, expected] of cases) {
+      assert.equal(vscode.configPath(ctx(platform, env)), expected, `${platform} ${JSON.stringify(env)}`);
+    }
   } finally {
-    win.cleanup();
-    mac.cleanup();
-    lin.cleanup();
+    fs.rmSync(home, { recursive: true, force: true });
   }
 });
 
@@ -66,16 +71,18 @@ test("gemini settings with comments are left alone", async () => {
   }
 });
 
-test("gemini doctor says entryDiffers for a url-only plgn entry", async () => {
-  const h = tempHome();
-  try {
-    h.put(".gemini/settings.json", JSON.stringify({ mcpServers: { plgn: { httpUrl: MCP_URL } } }));
-    const rows = await gemini.doctor(h.ctx);
-    const row = rows.find((r) => r.check === "entry");
-    assert.equal(row.status, "fail");
-    assert.equal(row.key, "doctor.entryDiffers");
-  } finally {
-    h.cleanup();
+test("gemini doctor says entryDiffers when our address sits under httpUrl without oauth, or under url", async () => {
+  for (const plgn of [{ httpUrl: MCP_URL }, { url: MCP_URL }]) {
+    const h = tempHome();
+    try {
+      h.put(".gemini/settings.json", JSON.stringify({ mcpServers: { plgn } }));
+      const rows = await gemini.doctor(h.ctx);
+      const row = rows.find((r) => r.check === "entry");
+      assert.equal(row.status, "fail", JSON.stringify(plgn));
+      assert.equal(row.key, "doctor.entryDiffers", JSON.stringify(plgn));
+    } finally {
+      h.cleanup();
+    }
   }
 });
 
@@ -90,4 +97,6 @@ test("gemini and vscode nextStep have English and Arabic text", () => {
   }
   assert.ok(gemini.nextStep("en").includes("/mcp auth plgn"));
   assert.ok(gemini.nextStep("ar").includes("/mcp auth plgn"));
+  assert.ok(vscode.nextStep("en").includes("MCP: List Servers"));
+  assert.ok(vscode.nextStep("ar").includes("MCP: List Servers"));
 });

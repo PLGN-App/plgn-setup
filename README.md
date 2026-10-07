@@ -16,11 +16,13 @@ It looks for the tools on your machine, shows the ones it found, and asks which 
 | `npx plgn-setup codex` | run `codex mcp login plgn` |
 | `npx plgn-setup cursor` | restart Cursor, open Settings, then MCP, and sign in to plgn when it asks |
 | `npx plgn-setup gemini` | open gemini and type `/mcp auth plgn` |
-| `npx plgn-setup windsurf` | restart Windsurf, open the MCP servers list in Cascade, and sign in to plgn when it asks |
+| `npx plgn-setup devin` | restart Devin (formerly Windsurf), open the MCP servers list in Cascade, and sign in to plgn when it asks |
 | `npx plgn-setup vscode` | in VS Code run `MCP: List Servers`, pick plgn, press Start and allow the sign-in |
-| `npx plgn-setup claude-desktop` | open Customize, Connectors, Add custom connector, name it plgn and paste the address |
+| `npx plgn-setup claude-desktop` | open Customize, Connectors, click `+ Add`, then Add custom connector, name it plgn and paste the address |
 
 Claude Code installs the plgn plugin (`claude plugin install plgn@plgn`). Claude Desktop has no file to edit, so plgn-setup prints the steps for you to do in the app.
+
+Devin is the new name of Windsurf. plgn-setup writes `~/.config/devin/mcp_config.json` (`%APPDATA%\devin\mcp_config.json` on Windows). If only the old Windsurf file `~/.codeium/windsurf/mcp_config.json` exists, it updates that one and says so. `npx plgn-setup windsurf` still works as an alias of `npx plgn-setup devin`.
 
 ## Check that it works
 
@@ -29,6 +31,8 @@ npx plgn-setup doctor
 ```
 
 Doctor prints one table: ok, fail or skip for each check. It exits with 1 only when something fails. Its only network call is one public GET to see that plgn answers.
+
+Colours are on only in a real terminal; piped output and `NO_COLOR` turn them off.
 
 ## Options
 
@@ -53,7 +57,7 @@ If it cannot change a file without risk, it does not touch it. It prints the sni
 ## What it never does
 
 - Ask for or store a key, token or password.
-- Send anything anywhere, except doctor's one public GET.
+- Send anything anywhere itself. plgn-setup's own code makes one network call: doctor's public GET to see that plgn answers. The Claude Code setup is different by design: it runs Claude Code's own `claude plugin` commands, and those fetch the plgn plugin from GitHub (PLGN-App/PLGN-CLAUDE).
 - Collect telemetry.
 - Drop your other servers or settings. It merges, it does not replace.
 

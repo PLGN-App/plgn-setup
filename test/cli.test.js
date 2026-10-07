@@ -5,7 +5,9 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { run } from "../src/cli.js";
+import { colorDefault, run } from "../src/cli.js";
+import picocolors from "picocolors";
+import { devinFile, legacyFile } from "../src/hosts/devin.js";
 import { HOST_IDS, MCP_URL } from "../src/constants.js";
 import { getHost, hosts } from "../src/hosts/index.js";
 import { fakeExec, tempHome } from "./helpers.js";
@@ -238,7 +240,7 @@ test("doctor exits 0 when green and 1 when red", async () => {
     const red = await cli(h, ["doctor"]);
     assert.equal(red.code, 1);
     assert.match(red.out, /plgn doctor/);
-    assert.match(red.out, /problem\(s\)/);
+    assert.match(red.out, /Problems: \d+\. Run npx plgn-setup to fix them\./);
     assert.equal(red.fetchCalls.length, 1);
     await cli(h, ["cursor", "--yes"]);
     const green = await cli(h, ["doctor"]);
@@ -320,6 +322,64 @@ test("bin --dry-run --yes on a temp home changes nothing and makes no backup", (
     assert.match(r.stdout, /would add plgn/);
     assert.deepEqual(snap(), before);
     assert.ok(!walk(home).some((f) => f.includes(".plgn-backup")));
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("windsurf is accepted as an alias of devin on the command line", async () => {
+  const h = tempHome();
+  try {
+    assert.equal(getHost("windsurf"), getHost("devin"));
+    const r = await cli(h, ["windsurf", "--yes"]);
+    assert.equal(r.code, 0);
+    assert.match(r.out, /Devin \(formerly Windsurf\): plgn added to /);
+    assert.ok(fs.readFileSync(devinFile(h.ctx), "utf8").includes(MCP_URL));
+    assert.equal(fs.existsSync(legacyFile(h.ctx)), false);
+    assert.ok(!r.out.includes("old Windsurf path"));
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("devin says when the old Windsurf file was the one updated", async () => {
+  const h = tempHome();
+  try {
+    h.put(".codeium/windsurf/mcp_config.json", "{}\n");
+    const dry = await cli(h, ["devin", "--dry-run", "--yes"]);
+    assert.equal(dry.code, 0);
+    assert.match(dry.out, /is the old Windsurf path/);
+    assert.equal(h.get(".codeium/windsurf/mcp_config.json"), "{}\n");
+    const r = await cli(h, ["devin", "--yes"]);
+    assert.equal(r.code, 0);
+    assert.match(r.out, /Devin \(formerly Windsurf\): plgn added to /);
+    assert.match(r.out, /is the old Windsurf path/);
+    assert.ok(h.get(".codeium/windsurf/mcp_config.json").includes(MCP_URL));
+    assert.equal(fs.existsSync(devinFile(h.ctx)), false);
+    const ar = await cli(h, ["--lang", "ar", "devin", "--yes"]);
+    assert.match(ar.out, /Windsurf القديم/);
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("colour is off when stdout is not a TTY or NO_COLOR is set", () => {
+  assert.equal(colorDefault({ isTTY: false, env: {} }), false);
+  assert.equal(colorDefault({ isTTY: true, env: { NO_COLOR: "1" } }), false);
+  assert.equal(colorDefault({ isTTY: true, env: {} }), picocolors.isColorSupported);
+  assert.equal(colorDefault({ isTTY: true, env: { NO_COLOR: "" } }), picocolors.isColorSupported);
+});
+
+test("bin output piped to a file has no escape codes", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "plgn-setup-bin-"));
+  try {
+    fs.mkdirSync(path.join(home, ".cursor"), { recursive: true });
+    fs.writeFileSync(path.join(home, ".cursor", "mcp.json"), "{}\n");
+    const r = spawnBin(home, ["--dry-run", "--yes"]);
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /Next, log in once in each tool:/);
+    assert.ok(!r.stdout.includes("\u001b"), r.stdout);
+    assert.ok(!r.stderr.includes("\u001b"), r.stderr);
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
   }

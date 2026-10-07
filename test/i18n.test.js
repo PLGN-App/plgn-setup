@@ -62,3 +62,20 @@ test("Arabic uses the feminine verb before feminine nouns", () => {
   }
   assert.ok(phrases.ar.pick.includes("ربطها"));
 });
+
+test("commands reach a phrase only through {vars}: no phrase spells npx or a leading / command", () => {
+  for (const { lang, key, text } of all()) {
+    assert.ok(!/npx /.test(text), `${lang}.${key} spells npx`);
+    assert.ok(!/(^|[\s،,])\/[a-z]/.test(text), `${lang}.${key} spells a / command`);
+    assert.ok(!/MCP: List Servers/.test(text), `${lang}.${key} spells a palette command`);
+  }
+});
+
+test("the devin phrases name Windsurf as the old name and claudeDesktop has the + Add click", () => {
+  for (const lang of LANGS) {
+    assert.ok(phrases[lang]["next.devin"].startsWith("Devin (formerly Windsurf)"), lang);
+    assert.ok(phrases[lang]["devin.oldPath"].includes("Windsurf"), lang);
+    assert.ok(phrases[lang]["next.claudeDesktop"].includes("+ Add"), lang);
+  }
+  assert.equal(phrases.ar["doctor.summaryFail"], "عدد المشاكل: {count}. شغّل {cmd} لإصلاحها.");
+});

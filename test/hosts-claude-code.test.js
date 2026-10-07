@@ -214,3 +214,44 @@ test("claude-code nextStep has English and Arabic text", () => {
   assert.equal(claudeCode.kind, "command");
   assert.equal(claudeCode.configPath({}), null);
 });
+
+test("claude-code ignores pseudo-ids (@skills-dir, @inline, @synced) and counts only the real plugin", async () => {
+  const pseudoOnly = listOf(
+    { id: "plgn@skills-dir", enabled: true, scope: "user" },
+    { id: "plgn@inline", enabled: true, scope: "user" },
+    { id: "plgn@synced", enabled: true, scope: "synced" },
+  );
+  const h = withClaude({ [LIST]: pseudoOnly, "claude --version": ok("2.1.300") });
+  try {
+    const r = await claudeCode.apply(h.ctx, { dryRun: true });
+    assert.equal(r.status, "added");
+    const row = (await claudeCode.doctor(h.ctx)).find((x) => x.check === "plugin");
+    assert.equal(row.key, "doctor.pluginMissing");
+  } finally {
+    h.cleanup();
+  }
+  const withReal = listOf(
+    { id: "plgn@skills-dir", enabled: true, scope: "user" },
+    { id: "plgn@plgn", enabled: true, scope: "user" },
+  );
+  const h2 = withClaude({ [LIST]: withReal, "claude --version": ok("2.1.300") });
+  try {
+    const r = await claudeCode.apply(h2.ctx, { dryRun: true });
+    assert.equal(r.status, "same");
+    const row = (await claudeCode.doctor(h2.ctx)).find((x) => x.check === "plugin");
+    assert.equal(row.key, "doctor.pluginOk");
+  } finally {
+    h2.cleanup();
+  }
+  // A real plgn@plgn install for another project does not count, even next to a user-wide pseudo-id.
+  const elsewhere = listOf(
+    { id: "plgn@skills-dir", enabled: true, scope: "user" },
+    { id: "plgn@plgn", enabled: true, scope: "project", projectPath: "/some/other/project" },
+  );
+  const h3 = withClaude({ [LIST]: elsewhere });
+  try {
+    assert.equal((await claudeCode.apply(h3.ctx, { dryRun: true })).status, "added");
+  } finally {
+    h3.cleanup();
+  }
+});

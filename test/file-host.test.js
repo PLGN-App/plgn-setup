@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import path from "node:path";
 import { MCP_URL } from "../src/constants.js";
 import { phrases } from "../src/i18n.js";
@@ -242,4 +243,43 @@ for (const [id, c] of Object.entries(cases)) {
     assert.equal(host.kind, "file");
     assert.equal(host.nextStep("en"), "demo next en");
   });
+}
+
+// Follow-up I: only a real file-system error (string code and string syscall) becomes an IO result.
+test("apply rethrows a Node ERR_* error (string code, no syscall) such as an undefined config path", async () => {
+  const bad = makeFileHost({
+    id: "demo-bad",
+    label: "Demo Bad",
+    bin: null,
+    format: "json",
+    configPath: () => undefined,
+    detectPaths: () => [],
+    path: ["mcpServers"],
+    entry,
+    nextStep: () => "",
+  });
+  const h = tempHome();
+  try {
+    await assert.rejects(bad.apply(h.ctx, { dryRun: false }), (e) => e.code === "ERR_INVALID_ARG_TYPE");
+    assert.deepEqual(h.files(), []);
+  } finally {
+    h.cleanup();
+  }
+});
+
+for (const [id, c] of Object.entries(cases)) {
+  const { host, rel } = c;
+  test(`${id}: an IO error after the backup was made names the backup in the result`, withHome(async (h) => {
+    h.put(rel, c.others);
+    const file = path.join(h.home, rel);
+    // The write goes through <file>.plgn-tmp-<pid>; a folder in its place makes the write fail after the backup.
+    fs.mkdirSync(`${file}.plgn-tmp-${process.pid}`);
+    const r = await host.apply(h.ctx, { dryRun: false });
+    assert.equal(r.status, "error");
+    assert.equal(r.error, "IO");
+    assert.equal(r.file, file);
+    assert.ok(r.backup && r.backup.includes(".plgn-backup-20261008-010203"), JSON.stringify(r));
+    assert.ok(fs.existsSync(r.backup));
+    assert.equal(h.get(rel), c.others);
+  }));
 }

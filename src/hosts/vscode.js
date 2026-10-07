@@ -18,5 +18,5 @@ export default makeFileHost({
   detectPaths: (ctx) => [userDir(ctx)],
   path: ["servers"],
   entry: { type: "http", url: MCP_URL },
-  nextStep: (lang) => t(lang, "next.vscode"),
+  nextStep: (lang) => t(lang, "next.vscode", { cmd: "MCP: List Servers" }),
 });

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkReach, renderTable, runDoctor } from "../src/doctor.js";
+import { checkReach, displayWidth, renderTable, runDoctor } from "../src/doctor.js";
 import { WELL_KNOWN_URL } from "../src/constants.js";
 import claudeCode from "../src/hosts/claude-code.js";
 import claudeDesktop from "../src/hosts/claude-desktop.js";
@@ -8,7 +8,7 @@ import codex from "../src/hosts/codex.js";
 import cursor from "../src/hosts/cursor.js";
 import gemini from "../src/hosts/gemini.js";
 import vscode from "../src/hosts/vscode.js";
-import windsurf from "../src/hosts/windsurf.js";
+import devin from "../src/hosts/devin.js";
 import { tempHome } from "./helpers.js";
 
 const answer = (status) => async () => ({ ok: status >= 200 && status < 300, status });
@@ -70,7 +70,7 @@ test("runDoctor is not ok when a detected host has no plgn entry", async () => {
 test("hosts that are not found give skip rows and keep ok true", async () => {
   const h = tempHome();
   try {
-    const hosts = [claudeCode, codex, cursor, gemini, windsurf, vscode, claudeDesktop];
+    const hosts = [claudeCode, codex, cursor, gemini, devin, vscode, claudeDesktop];
     const out = await runDoctor(h.ctx, { hosts, fetch: answer(200) });
     assert.equal(out.ok, true);
     for (const host of hosts) {
@@ -120,7 +120,7 @@ test("renderTable with color off has no escape codes and one line per row plus t
   assert.equal(lines[1].indexOf("config file"), lines[2].indexOf("plgn entry"));
   assert.equal(lines[1].indexOf("✔"), lines[2].indexOf("✘"));
   assert.ok(lines[4 - 1].includes("tool"));
-  assert.equal(lines[lines.length - 1], "1 problem(s). Run npx plgn-setup to fix them.");
+  assert.equal(lines[lines.length - 1], "Problems: 1. Run npx plgn-setup to fix them.");
   const good = renderTable(sample.slice(0, 2), { lang: "en", color: false, labels });
   assert.equal(good.split("\n").pop(), "All good.");
 });
@@ -139,4 +139,35 @@ test("renderTable pads by visible width when color is on", () => {
   const plain = (s) => s.replace(/\u001b\[[0-9;]*m/g, "");
   const lines = out.split("\n").map(plain);
   assert.equal(lines[1].indexOf("✔"), lines[2].indexOf("✘"));
+});
+
+test("checkReach shows the cause code when fetch rejects with one", async () => {
+  const down = await checkReach(async () => {
+    throw new Error("fetch failed", { cause: Object.assign(new Error("getaddrinfo ENOTFOUND useplgn.com"), { code: "ENOTFOUND" }) });
+  });
+  assert.equal(down.status, "fail");
+  assert.equal(down.vars.detail, "ENOTFOUND");
+  const plain = await checkReach(async () => {
+    throw new Error("fetch failed", { cause: new Error("no code here") });
+  });
+  assert.equal(plain.vars.detail, "fetch failed");
+});
+
+test("renderTable pads by display width: combining marks and zero-width characters take no room", () => {
+  assert.equal(displayWidth("شدّة"), 3);
+  assert.equal(displayWidth("a​b﻿"), 2);
+  assert.equal(displayWidth("Cursor"), 6);
+  const rows = [
+    { id: "a", check: "config", status: "ok", key: "doctor.fileFound", vars: { file: "/x" } },
+    { id: "b", check: "entry", status: "fail", key: "doctor.entryMissing" },
+  ];
+  // "شدّة" has a shadda (U+0651, category Mn): four code points, three seen. "abc" is three seen too.
+  const out = renderTable(rows, { lang: "ar", color: false, labels: { a: "شدّة", b: "abc" } });
+  const lines = out.split("\n");
+  const nameCell = (s) => s.slice(0, s.indexOf("  "));
+  assert.equal(displayWidth(nameCell(lines[0])), displayWidth(nameCell(lines[1])));
+  // One combining mark more in line 0, so its mark sits one code unit further right, and no further.
+  assert.equal(lines[0].indexOf("✔"), lines[1].indexOf("✘") + 1);
+  assert.ok(lines.at(-1).startsWith("عدد المشاكل: 1."));
+  assert.ok(lines.at(-1).includes("npx plgn-setup"));
 });

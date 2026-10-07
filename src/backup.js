@@ -44,7 +44,10 @@ export function writeConfig(file, text) {
     if (mode !== null) fs.chmodSync(tmp, mode);
     fs.renameSync(tmp, target);
   } catch (e) {
-    fs.rmSync(tmp, { force: true });
+    // Remove the temp file if one was made; a cleanup error must never hide the write error.
+    try {
+      fs.rmSync(tmp, { force: true });
+    } catch {}
     throw e;
   }
 }

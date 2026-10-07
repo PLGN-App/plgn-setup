@@ -15,6 +15,15 @@ const OPTIONS = {
   version: { type: "boolean", short: "v" },
 };
 
+// How a person types this program; every phrase gets it as a {cmd} var, never spelled inside i18n.js.
+const CMD = "npx plgn-setup";
+
+// Colour only on a real terminal that supports it, and never when NO_COLOR is set (https://no-color.org).
+export function colorDefault({ isTTY = Boolean(process.stdout.isTTY), env = process.env } = {}) {
+  if (typeof env.NO_COLOR === "string" && env.NO_COLOR !== "") return false;
+  return isTTY && picocolors.isColorSupported;
+}
+
 function readVersion() {
   const file = new URL("../package.json", import.meta.url);
   return JSON.parse(fs.readFileSync(file, "utf8")).version;
@@ -31,7 +40,7 @@ export async function run(argv, io = {}) {
   const stdout = io.stdout ?? process.stdout;
   const stderr = io.stderr ?? process.stderr;
   const isTTY = io.isTTY ?? Boolean(process.stdin.isTTY && process.stdout.isTTY);
-  const color = io.color ?? picocolors.isColorSupported;
+  const color = io.color ?? colorDefault();
   const prompt = io.prompt ?? clackPrompt;
   const fetchFn = io.fetch ?? globalThis.fetch;
   const ctx = io.ctx ?? makeContext();
@@ -46,7 +55,7 @@ export async function run(argv, io = {}) {
     parsed = parseArgs({ args: argv, options: OPTIONS, allowPositionals: true, strict: true });
     if (parsed.positionals.length > 1) throw new Error("Too many arguments");
   } catch (e) {
-    err(t("en", "badArgs", { detail: String(e?.message ?? e).replace(/\.$/, "") }));
+    err(t("en", "badArgs", { detail: String(e?.message ?? e).replace(/\.$/, ""), cmd: `${CMD} --help` }));
     return 2;
   }
   const { values, positionals } = parsed;
@@ -56,7 +65,7 @@ export async function run(argv, io = {}) {
     return 2;
   }
   if (values.help) {
-    out(t(lang, "help", { hosts: hostList }));
+    out(t(lang, "help", { hosts: hostList, cmd: CMD }));
     return 0;
   }
   if (values.version) {
@@ -109,7 +118,7 @@ export async function run(argv, io = {}) {
   }
 
   if (chosen.length === 0) {
-    out(t(lang, "noneFound", { hosts: hostList }));
+    out(t(lang, "noneFound", { hosts: hostList, cmd: CMD }));
     return 0;
   }
 
@@ -144,8 +153,11 @@ export async function run(argv, io = {}) {
       }
       return;
     }
+    // A host may add one line of its own after the result (e.g. devin: the old Windsurf file was the one updated).
+    const note = () => result.note && out(t(lang, result.note.key, { ...vars, ...result.note.vars }));
     if (result.status === "same") {
       out(t(lang, "same", vars));
+      note();
       return;
     }
     if (host.kind === "command") {
@@ -154,10 +166,12 @@ export async function run(argv, io = {}) {
     }
     if (result.dryRun) {
       out(t(lang, result.status === "added" ? "wouldAdd" : "wouldUpdate", vars));
+      note();
       out(host.snippet());
       return;
     }
     out(t(lang, result.status, vars));
+    note();
     if (result.backup) out(t(lang, "backup", { file: result.backup }));
   }
 
