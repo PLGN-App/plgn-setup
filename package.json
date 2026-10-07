@@ -3,10 +3,28 @@
   "version": "0.1.0",
   "description": "One command that connects your AI tool to plgn.",
   "type": "module",
-  "bin": { "plgn-setup": "bin/plgn-setup.js" },
-  "engines": { "node": ">=20" },
-  "scripts": { "test": "node --test" },
+  "bin": {
+    "plgn-setup": "bin/plgn-setup.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
   "license": "MIT",
   "repository": "https://github.com/PLGN-App/plgn-setup",
-  "homepage": "https://useplgn.com"
+  "homepage": "https://useplgn.com",
+  "dependencies": {
+    "@clack/prompts": "^1.8.1",
+    "picocolors": "^1.1.1",
+    "smol-toml": "^1.9.0"
+  }
 }
