@@ -68,6 +68,8 @@ export const phrases = {
     "check.version": "version",
     "check.plugin": "plugin",
     "check.manual": "connector",
+    ioError: "{label}: stopped with an error: {detail}",
+    wouldRun: "{label}: would run {cmd}",
     // en: end
   },
   ar: {
@@ -133,6 +135,8 @@ export const phrases = {
     "check.version": "الإصدار",
     "check.plugin": "الإضافة",
     "check.manual": "الموصّل",
+    ioError: "{label}: توقف بسبب خطأ: {detail}",
+    wouldRun: "{label}: سيتم تشغيل {cmd}",
     // ar: end
   },
 };
