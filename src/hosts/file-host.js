@@ -44,27 +44,37 @@ export function makeFileHost(spec) {
 
     async apply(ctx, { dryRun }) {
       const file = spec.configPath(ctx);
-      let merged;
       try {
-        merged = merge(readText(file));
+        const merged = merge(readText(file));
+        if (merged.change === "same") return { id, status: "same", dryRun, file };
+        if (dryRun) return { id, status: merged.change, dryRun, file };
+        // backupFile returns null when there is no file yet.
+        const backup = backupFile(file, { now: ctx.now() });
+        writeConfig(file, merged.text);
+        return { id, status: merged.change, dryRun, file, backup };
       } catch (e) {
+        // MergeError first: its code is a string too.
         if (e instanceof MergeError) return { id, status: "error", dryRun, error: e.code, detail: e.message, file };
+        // A file-system error (EACCES, EISDIR, EPERM) becomes a result; a bug without a code still throws.
+        if (typeof e?.code === "string") return { id, status: "error", dryRun, error: "IO", detail: e.message, file };
         throw e;
       }
-      if (merged.change === "same") return { id, status: "same", dryRun, file };
-      if (dryRun) return { id, status: merged.change, dryRun, file };
-      // backupFile returns null when there is no file yet.
-      const backup = backupFile(file, { now: ctx.now() });
-      writeConfig(file, merged.text);
-      return { id, status: merged.change, dryRun, file, backup };
     },
 
     async doctor(ctx) {
       if (!detect(ctx)) return [{ id, check: "found", status: "skip", key: "doctor.notFound" }];
       const rows = [];
       const file = spec.configPath(ctx);
-      const text = readText(file);
-      if (text === null) {
+      let text;
+      let readFailed = false;
+      try {
+        text = readText(file);
+      } catch {
+        readFailed = true;
+      }
+      if (readFailed) {
+        rows.push({ id, check: "config", status: "fail", key: "doctor.unreadable", vars: { file } });
+      } else if (text === null) {
         rows.push({ id, check: "config", status: "fail", key: "doctor.fileMissing", vars: { file } });
       } else {
         rows.push({ id, check: "config", status: "ok", key: "doctor.fileFound", vars: { file } });
@@ -74,6 +84,8 @@ export function makeFileHost(spec) {
             rows.push({ id, check: "entry", status: "fail", key: "doctor.entryMissing" });
           } else if (sameValue(found, entry)) {
             rows.push({ id, check: "entry", status: "ok", key: "doctor.entryOk", vars: { url: oldUrl(entry) } });
+          } else if (oldUrl(found) === oldUrl(entry)) {
+            rows.push({ id, check: "entry", status: "fail", key: "doctor.entryDiffers" });
           } else {
             rows.push({ id, check: "entry", status: "fail", key: "doctor.entryWrong", vars: { url: oldUrl(found) } });
           }

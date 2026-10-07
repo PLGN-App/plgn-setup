@@ -43,6 +43,7 @@ export const phrases = {
     "doctor.unreadable": "could not read {file}",
     "doctor.version": "{version}",
     "doctor.noBinary": "{bin} is not on PATH",
+    "doctor.entryDiffers": "the plgn entry has the right address but other settings differ",
     // en: end
   },
   ar: {
@@ -83,6 +84,7 @@ export const phrases = {
     "doctor.unreadable": "لم نستطع قراءة {file}",
     "doctor.version": "{version}",
     "doctor.noBinary": "{bin} غير موجود في PATH",
+    "doctor.entryDiffers": "إعداد plgn عنوانه صحيح لكن إعدادات أخرى فيه مختلفة",
     // ar: end
   },
 };

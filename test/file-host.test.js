@@ -40,6 +40,7 @@ const cases = {
     others: JSON.stringify({ theme: "dark", mcpServers: { other: { command: "x", args: ["a"] } } }, null, 2),
     old: JSON.stringify({ mcpServers: { other: { url: "https://o.example/mcp" }, plgn: { url: "https://old.example/mcp" } } }, null, 2),
     broken: '{ "mcpServers": { "a": ',
+    differs: JSON.stringify({ mcpServers: { plgn: { url: MCP_URL, disabled: true } } }, null, 2),
   },
   "demo-toml": {
     host: tomlHost,
@@ -47,6 +48,7 @@ const cases = {
     others: '# my settings\nmodel = "x"\n\n[mcp_servers.other]\ncommand = "npx"\nargs = ["a"]\n',
     old: '[mcp_servers.plgn]\nurl = "https://old.example/mcp"\n\n[mcp_servers.other]\ncommand = "npx"\n',
     broken: "[mcp_servers\nurl = ",
+    differs: `[mcp_servers.plgn]\nurl = "${MCP_URL}"\ndisabled = true\n`,
   },
 };
 
@@ -170,6 +172,33 @@ for (const [id, c] of Object.entries(cases)) {
     assert.equal(byCheck(rows, "entry").vars.url, MCP_URL);
   }));
 
+  test(`${id}: doctor says entryDiffers when the address is right but another key differs`, withHome(async (h) => {
+    h.put(rel, c.differs);
+    const rows = await host.doctor(h.ctx);
+    const entryRow = rows.find((r) => r.check === "entry");
+    assert.equal(entryRow.status, "fail");
+    assert.equal(entryRow.key, "doctor.entryDiffers");
+  }));
+
+  test(`${id}: apply returns an IO error and does not throw when the config path is a folder`, withHome(async (h) => {
+    h.put(`${rel}/x`, "");
+    const before = h.files().sort();
+    const r = await host.apply(h.ctx, { dryRun: false });
+    assert.equal(r.status, "error");
+    assert.equal(r.error, "IO");
+    assert.ok(r.detail && r.detail.length > 0);
+    assert.deepEqual(h.files().sort(), before);
+  }));
+
+  test(`${id}: doctor gives a red unreadable config row when the config path is a folder`, withHome(async (h) => {
+    h.put(`${rel}/x`, "");
+    const rows = await host.doctor(h.ctx);
+    const config = rows.find((r) => r.check === "config");
+    assert.equal(config.status, "fail");
+    assert.equal(config.key, "doctor.unreadable");
+    assert.equal(rows.find((r) => r.check === "entry"), undefined);
+  }));
+
   test(`${id}: doctor version row is ok with the first line and skip without the binary`, withHome(async (h) => {
     h.put(".demo/.keep", "");
     const exec = fakeExec({ "demo --version": { code: 0, stdout: "demo 1.2.3\nmore\n", stderr: "" } });
@@ -195,7 +224,7 @@ for (const [id, c] of Object.entries(cases)) {
     await collect();
     h.put(".demo/.keep", "");
     await collect();
-    for (const text of [c.others, c.old, c.broken, host.merge(null).text]) {
+    for (const text of [c.others, c.old, c.broken, c.differs, host.merge(null).text]) {
       h.put(rel, text);
       await collect();
     }
