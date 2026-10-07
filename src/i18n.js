@@ -44,6 +44,8 @@ export const phrases = {
     "doctor.version": "{version}",
     "doctor.noBinary": "{bin} is not on PATH",
     "doctor.entryDiffers": "the plgn entry has the right address but other settings differ",
+    "next.cursor": "Cursor: restart it, open Settings, then MCP, and sign in to plgn when it asks",
+    "next.windsurf": "Windsurf: restart it, open the MCP servers list in Cascade, and sign in to plgn when it asks",
     // en: end
   },
   ar: {
@@ -85,6 +87,8 @@ export const phrases = {
     "doctor.version": "{version}",
     "doctor.noBinary": "{bin} غير موجود في PATH",
     "doctor.entryDiffers": "إعداد plgn عنوانه صحيح لكن إعدادات أخرى فيه مختلفة",
+    "next.cursor": "Cursor: أعد تشغيله، ثم افتح Settings ثم MCP، وسجّل الدخول إلى plgn عندما يطلب ذلك",
+    "next.windsurf": "Windsurf: أعد تشغيله، ثم افتح قائمة خوادم MCP في Cascade، وسجّل الدخول إلى plgn عندما يطلب ذلك",
     // ar: end
   },
 };
