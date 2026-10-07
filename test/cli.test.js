@@ -13,8 +13,7 @@ import { fakeExec, tempHome } from "./helpers.js";
 const BIN = fileURLToPath(new URL("../bin/plgn-setup.js", import.meta.url));
 
 // Runs the CLI in-process on a temp home; collects both streams, never touches the network.
-async function cli(h, argv, { isTTY = false, prompt, answers, fetchOk = true } = {}) {
-  const out = [];
+async function cli(h, argv, { isTTY = false, prompt, answers, fetchOk = true, out = [] } = {}) {
   const err = [];
   const fetchCalls = [];
   const ctx = { ...h.ctx, exec: fakeExec(answers) };
@@ -151,13 +150,17 @@ test("the prompt gets detected hosts pre-checked and only picked hosts are writt
     h.put(".cursor/mcp.json", "{}\n");
     h.put(".codex/config.toml", 'model = "x"\n');
     const seen = [];
+    let printed;
     const prompt = async (options, initialValues, lang) => {
       seen.push({ options, initialValues, lang });
+      printed = out.join("");
       return ["codex"];
     };
-    const r = await cli(h, [], { isTTY: true, prompt });
+    const out = [];
+    const r = await cli(h, [], { isTTY: true, prompt, out });
     assert.equal(r.code, 0);
     assert.equal(seen.length, 1);
+    assert.match(printed, /plgn setup: connect your AI tools to plgn\./);
     assert.deepEqual(seen[0].options.map((o) => o.value), HOST_IDS);
     assert.deepEqual(seen[0].initialValues, ["codex", "cursor"]);
     assert.equal(seen[0].lang, "en");

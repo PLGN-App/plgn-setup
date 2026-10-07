@@ -48,6 +48,34 @@ test("claude-code is same and runs only the list when plgn is already installed"
   }
 });
 
+test("claude-code looks at every plgn entry and its scope", async () => {
+  const mixed = listOf(
+    { id: "plgn@plgn", scope: "local", projectPath: "/other", enabled: false },
+    { id: "plgn@plgn", scope: "user", enabled: true },
+  );
+  const h = withClaude({ [LIST]: mixed, "claude --version": ok("2.1.300") });
+  try {
+    const r = await claudeCode.apply(h.ctx, { dryRun: false });
+    assert.equal(r.status, "same");
+    assert.deepEqual(h.ctx.exec.calls.map(keyOf), [LIST]);
+    const row = (await claudeCode.doctor(h.ctx)).find((x) => x.check === "plugin");
+    assert.equal(row.status, "ok");
+  } finally {
+    h.cleanup();
+  }
+  const other = listOf({ id: "plgn@plgn", scope: "project", projectPath: "/some/other/project", enabled: true });
+  const h2 = withClaude({ [LIST]: other, "claude --version": ok("2.1.300") });
+  try {
+    const r = await claudeCode.apply(h2.ctx, { dryRun: false });
+    assert.equal(r.status, "added");
+    assert.deepEqual(h2.ctx.exec.calls.map(keyOf), [LIST, ADD, INSTALL]);
+    const row = (await claudeCode.doctor(h2.ctx)).find((x) => x.check === "plugin");
+    assert.equal(row.key, "doctor.pluginMissing");
+  } finally {
+    h2.cleanup();
+  }
+});
+
 test("claude-code dry run never adds or installs and lists both commands", async () => {
   const h = withClaude({ [LIST]: ok("[]") });
   try {

@@ -31,9 +31,16 @@ async function pluginState(ctx) {
     return "unknown";
   }
   if (!Array.isArray(list)) return "unknown";
-  const found = list.find((p) => typeof p?.id === "string" && p.id.startsWith(`${PLUGIN}@`));
-  if (!found) return "missing";
-  return found.enabled === false ? "off" : "on";
+  const mine = list.filter((p) => typeof p?.id === "string" && p.id.startsWith(`${PLUGIN}@`));
+  // Only installs that cover this person count: user-wide ones, or a project/local one for this folder.
+  const here = path.resolve(ctx.cwd ?? process.cwd());
+  const counts = (p) =>
+    ["user", "managed", "synced"].includes(p.scope) ||
+    (typeof p.projectPath === "string" && path.resolve(p.projectPath) === here) ||
+    (p.scope === undefined && p.projectPath === undefined);
+  const mineHere = mine.filter(counts);
+  if (mineHere.length === 0) return "missing";
+  return mineHere.some((p) => p.enabled !== false) ? "on" : "off";
 }
 
 const firstLine = (text) =>

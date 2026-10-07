@@ -82,14 +82,17 @@ export async function run(argv, io = {}) {
       err(t(lang, "unknownHost", { name, hosts: hostList }));
       return 2;
     }
+    out(t(lang, "intro"));
     chosen = [host];
   } else {
     const detected = hosts.filter((h) => h.detect(ctx));
-    if (values.yes) {
-      chosen = detected;
-    } else if (!isTTY) {
+    if (!values.yes && !isTTY) {
       err(t(lang, "needYes", { hosts: hostList }));
       return 2;
+    }
+    out(t(lang, "intro"));
+    if (values.yes) {
+      chosen = detected;
     } else {
       const options = hosts.map((h) => {
         const option = { value: h.id, label: h.label };
@@ -105,7 +108,6 @@ export async function run(argv, io = {}) {
     }
   }
 
-  out(t(lang, "intro"));
   if (chosen.length === 0) {
     out(t(lang, "noneFound", { hosts: hostList }));
     return 0;
