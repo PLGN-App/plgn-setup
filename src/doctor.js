@@ -1,6 +1,7 @@
 import picocolors from "picocolors";
 import { WELL_KNOWN_URL } from "./constants.js";
 import { t } from "./i18n.js";
+import { skillsDirFor, skillsStatus } from "./skills.js";
 
 // The only file that calls fetch: one public GET, no body, no header, nothing about the person.
 export async function checkReach(fetchFn) {
@@ -36,12 +37,32 @@ export async function runDoctor(ctx, { hosts, fetch: fetchFn }) {
         vars: { detail: String(e?.message ?? e) },
       });
     }
+    rows.push(...skillsRows(ctx, host));
   }
   return { rows, ok: rows.every((r) => r.status !== "fail") };
 }
 
 const MARKS = { ok: "✔", fail: "✘", skip: "–" };
 const FIX_CMD = "npx plgn-setup";
+
+// One row for a detected host that has a skills folder: how many of the bundled skills are in it (Decision 11).
+// "Installed" means the SKILL.md is there; no byte or version compare.
+function skillsRows(ctx, host) {
+  try {
+    if (!skillsDirFor(host.id, ctx) || !host.detect?.(ctx)) return [];
+    const status = skillsStatus(ctx, host.id);
+    if (!status || status.total === 0) return [];
+    const { installed, total } = status;
+    const cmd = `${FIX_CMD} ${host.id}`;
+    if (installed === total) {
+      return [{ id: host.id, check: "skills", status: "ok", key: "doctor.skillsOk", vars: { count: String(installed), total: String(total) } }];
+    }
+    const key = installed === 0 ? "doctor.skillsNone" : "doctor.skillsPartial";
+    return [{ id: host.id, check: "skills", status: "fail", key, vars: { count: String(installed), total: String(total), cmd } }];
+  } catch (e) {
+    return [{ id: host.id, check: "skills", status: "fail", key: "doctor.error", vars: { detail: String(e?.message ?? e) } }];
+  }
+}
 
 // Columns line up by what is seen: combining marks (Arabic shadda, fatha) and zero-width characters take no room.
 const INVISIBLE = /\p{Mn}|[​-‏⁠﻿]/gu;

@@ -10,6 +10,7 @@ import picocolors from "picocolors";
 import { devinFile, legacyFile } from "../src/hosts/devin.js";
 import { HOST_IDS, MCP_URL } from "../src/constants.js";
 import { getHost, hosts } from "../src/hosts/index.js";
+import { installSkills } from "../src/skills.js";
 
 // The version the CLI prints is package.json's, so a release bump never needs a test edit.
 const PKG_VERSION = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
@@ -246,6 +247,7 @@ test("doctor exits 0 when green and 1 when red", async () => {
     assert.match(red.out, /Problems: \d+\. Run npx plgn-setup to fix them\./);
     assert.equal(red.fetchCalls.length, 1);
     await cli(h, ["cursor", "--yes"]);
+    installSkills(h.ctx, "cursor", { dryRun: false });
     const green = await cli(h, ["doctor"]);
     assert.equal(green.code, 0);
     assert.match(green.out, /All good\./);

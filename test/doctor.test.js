@@ -10,6 +10,9 @@ import gemini from "../src/hosts/gemini.js";
 import vscode from "../src/hosts/vscode.js";
 import devin from "../src/hosts/devin.js";
 import { tempHome } from "./helpers.js";
+import { bundledSkills, installSkills, skillsDirFor } from "../src/skills.js";
+import fs from "node:fs";
+import path from "node:path";
 
 const answer = (status) => async () => ({ ok: status >= 200 && status < 300, status });
 
@@ -45,11 +48,66 @@ test("runDoctor is ok when plgn answers and every detected host is set", async (
   try {
     const res = await cursor.apply(h.ctx, { dryRun: false });
     assert.equal(res.status, "added");
+    installSkills(h.ctx, "cursor", { dryRun: false });
     const out = await runDoctor(h.ctx, { hosts: [cursor], fetch: answer(200) });
     assert.equal(out.ok, true);
+    const total = bundledSkills().skills.length;
+    const skillsRow = out.rows.find((r) => r.id === "cursor" && r.check === "skills");
+    assert.equal(skillsRow.status, "ok");
+    assert.equal(skillsRow.key, "doctor.skillsOk");
+    assert.equal(skillsRow.vars.count, String(total));
     assert.equal(out.rows[0].check, "reach");
     assert.ok(out.rows.some((r) => r.id === "cursor" && r.check === "entry" && r.status === "ok"));
     assert.ok(out.rows.every((r) => r.status !== "fail"));
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("the skills row is red and partial when a skill folder is missing", async () => {
+  const h = tempHome();
+  try {
+    await cursor.apply(h.ctx, { dryRun: false });
+    installSkills(h.ctx, "cursor", { dryRun: false });
+    const { skills } = bundledSkills();
+    fs.rmSync(path.join(skillsDirFor("cursor", h.ctx), skills[0].name), { recursive: true, force: true });
+    const out = await runDoctor(h.ctx, { hosts: [cursor], fetch: answer(200) });
+    const row = out.rows.find((r) => r.id === "cursor" && r.check === "skills");
+    assert.equal(row.status, "fail");
+    assert.equal(row.key, "doctor.skillsPartial");
+    assert.equal(row.vars.count, String(skills.length - 1));
+    assert.equal(row.vars.total, String(skills.length));
+    assert.equal(row.vars.cmd, "npx plgn-setup cursor");
+    assert.equal(out.ok, false);
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("the skills row is red none when no plgn skill is installed", async () => {
+  const h = tempHome();
+  try {
+    await cursor.apply(h.ctx, { dryRun: false });
+    const out = await runDoctor(h.ctx, { hosts: [cursor], fetch: answer(200) });
+    const row = out.rows.find((r) => r.id === "cursor" && r.check === "skills");
+    assert.equal(row.status, "fail");
+    assert.equal(row.key, "doctor.skillsNone");
+    assert.equal(row.vars.cmd, "npx plgn-setup cursor");
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("no skills row for a host that is not found or has no skills folder", async () => {
+  const h = tempHome();
+  try {
+    const hosts = [claudeCode, codex, cursor, gemini, devin, vscode, claudeDesktop];
+    const empty = await runDoctor(h.ctx, { hosts, fetch: answer(200) });
+    assert.ok(!empty.rows.some((r) => r.check === "skills"));
+    // Detected but without a skills folder: still no row.
+    h.put(".claude/settings.json", "{}");
+    const out = await runDoctor(h.ctx, { hosts: [claudeCode], fetch: answer(200) });
+    assert.ok(!out.rows.some((r) => r.check === "skills"));
   } finally {
     h.cleanup();
   }
@@ -123,6 +181,14 @@ test("renderTable with color off has no escape codes and one line per row plus t
   assert.equal(lines[lines.length - 1], "Problems: 1. Run npx plgn-setup to fix them.");
   const good = renderTable(sample.slice(0, 2), { lang: "en", color: false, labels });
   assert.equal(good.split("\n").pop(), "All good.");
+});
+
+test("renderTable labels the skills check", () => {
+  const rows = [{ id: "cursor", check: "skills", status: "ok", key: "doctor.skillsOk", vars: { count: "3", total: "3" } }];
+  const out = renderTable(rows, { lang: "en", color: false, labels });
+  const line = out.split("\n")[0];
+  assert.ok(line.includes("skills"));
+  assert.ok(line.includes("3 of 3 plgn skills"));
 });
 
 test("renderTable in Arabic shows the fail count in Western digits", () => {
