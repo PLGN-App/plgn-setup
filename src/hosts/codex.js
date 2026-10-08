@@ -6,7 +6,7 @@ import { MCP_URL } from "../constants.js";
 import { t } from "../i18n.js";
 import { makeFileHost } from "./file-host.js";
 
-const codexHome = (ctx) => ctx.env.CODEX_HOME || path.join(ctx.home, ".codex");
+export const codexHome = (ctx) => ctx.env.CODEX_HOME || path.join(ctx.home, ".codex");
 
 export default makeFileHost({
   id: "codex",
