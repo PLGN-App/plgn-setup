@@ -202,8 +202,8 @@ export async function run(argv, io = {}) {
         return;
       }
       if (dryRun) {
-        out(t(lang, "skills.would", vars));
-        out(`  ${todo.join(", ")}`);
+        out(t(lang, "skills.would", { ...vars, count: todo.length }));
+        out(`  ${[...todo].sort().join(", ")}`);
         return;
       }
       const yes = values.yes ? true : isTTY ? await confirm(t(lang, "skills.ask", vars), lang) : false;

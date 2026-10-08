@@ -491,6 +491,26 @@ test("--dry-run lists the skills it would copy and writes nothing", async () => 
   }
 });
 
+test("--dry-run on a partly installed folder counts and lists only what would be written", async () => {
+  const h = tempHome();
+  try {
+    await cli(h, ["codex", "--yes"]);
+    const [a, b] = bundledNames();
+    const dir = skillsDir(h, "codex");
+    fs.rmSync(path.join(dir, a), { recursive: true, force: true });
+    fs.appendFileSync(path.join(dir, b, "SKILL.md"), "\nchanged\n");
+    const r = await cli(h, ["codex", "--dry-run"]);
+    assert.equal(r.code, 0);
+    const lines = r.out.split("\n");
+    const i = lines.findIndex((l) => /would install/.test(l));
+    assert.ok(i >= 0, r.out);
+    assert.match(lines[i], /would install 2 plgn skills/);
+    assert.equal(lines[i + 1].trim(), [a, b].sort().join(", "));
+  } finally {
+    h.cleanup();
+  }
+});
+
 test("hosts without a skills folder get no skills step", async () => {
   const h = tempHome();
   try {
