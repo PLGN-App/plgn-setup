@@ -1,0 +1,35 @@
+name: publish
+
+# Publishes plgn-setup to npm when a version tag is pushed (v0.1.1, v0.2.0, ...).
+# No npm token lives in GitHub: npm trusts this workflow through OpenID Connect
+# ("trusted publishing", set once on npmjs.com under the package's Settings).
+# The tag must match package.json's version, or the job stops before publishing.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm test
+      - name: tag matches package.json
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$version" ]; then
+            echo "tag v$tag does not match package.json version $version"
+            exit 1
+          fi
+      - run: npm publish --access public

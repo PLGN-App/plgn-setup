@@ -20,7 +20,10 @@
     "test": "node --test"
   },
   "license": "MIT",
-  "repository": "https://github.com/PLGN-App/plgn-setup",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PLGN-App/plgn-setup.git"
+  },
   "homepage": "https://useplgn.com",
   "dependencies": {
     "@clack/prompts": "^1.8.1",
