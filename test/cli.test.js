@@ -10,6 +10,9 @@ import picocolors from "picocolors";
 import { devinFile, legacyFile } from "../src/hosts/devin.js";
 import { HOST_IDS, MCP_URL } from "../src/constants.js";
 import { getHost, hosts } from "../src/hosts/index.js";
+
+// The version the CLI prints is package.json's, so a release bump never needs a test edit.
+const PKG_VERSION = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
 import { fakeExec, tempHome } from "./helpers.js";
 
 const BIN = fileURLToPath(new URL("../bin/plgn-setup.js", import.meta.url));
@@ -126,7 +129,7 @@ test("--help and --version exit 0", async () => {
     assert.ok(help.out.includes(HOST_IDS.join(", ")));
     const version = await cli(h, ["-v"]);
     assert.equal(version.code, 0);
-    assert.equal(version.out.trim(), "0.1.0");
+    assert.equal(version.out.trim(), PKG_VERSION);
   } finally {
     h.cleanup();
   }
@@ -292,12 +295,12 @@ function spawnBin(home, args) {
   return spawnSync(process.execPath, [BIN, ...args], { env, encoding: "utf8" });
 }
 
-test("bin --version prints 0.1.0", () => {
+test("bin --version prints package.json's version", () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "plgn-setup-bin-"));
   try {
     const r = spawnBin(home, ["--version"]);
     assert.equal(r.status, 0);
-    assert.equal(r.stdout.trim(), "0.1.0");
+    assert.equal(r.stdout.trim(), PKG_VERSION);
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
   }
