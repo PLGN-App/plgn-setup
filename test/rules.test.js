@@ -54,9 +54,19 @@ test("README names every host id, doctor, --lang ar and the backup rule", () => 
   assert.ok(readme.includes("--dry-run"));
   assert.ok(readme.includes("--yes"));
   assert.ok(readme.includes(".plgn-backup-YYYYMMDD-HHmmss"));
+  assert.ok(readme.includes("--no-skills"));
+  assert.ok(readme.includes("npx skills add PLGN-App/plgn-setup"));
 });
 
-test("package files list is exactly bin, src, README.md, CHANGELOG.md, LICENSE", () => {
+test("package files list is exactly bin, src, skills, README.md, CHANGELOG.md, LICENSE", () => {
   const pkg = JSON.parse(read(path.join(root, "package.json")));
-  assert.deepEqual([...pkg.files].sort(), ["CHANGELOG.md", "LICENSE", "README.md", "bin", "src"]);
+  assert.deepEqual([...pkg.files].sort(), ["CHANGELOG.md", "LICENSE", "README.md", "bin", "skills", "src"]);
+});
+
+test("the generate workflow regenerates skills/ from the plugin", () => {
+  const file = path.join(root, ".github", "workflows", "generate.yml");
+  assert.ok(fs.existsSync(file));
+  const yml = read(file);
+  assert.ok(yml.includes("contents: write"));
+  assert.ok(yml.includes('_dev/scripts/portable.mjs" --out ./skills'));
 });

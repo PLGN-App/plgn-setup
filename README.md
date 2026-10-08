@@ -8,6 +8,28 @@ npx plgn-setup
 
 It looks for the tools on your machine, shows the ones it found, and asks which to set up. After it writes, each tool needs one login step. plgn-setup never does the login for you and never sees your password.
 
+## plgn's skills
+
+After a tool is connected, plgn-setup also offers to install plgn's skills (its commands, roles and skills) into that tool's own skills folder. It asks first; `--yes` says yes, `--dry-run` only lists what it would copy, and `--no-skills` skips the step.
+
+The skills are copied from the package itself. There is no network call and no `npx skills` run. Only folders named after plgn's own skills are ever replaced; every other folder in the skills folder is left alone, and a skill that is already identical is not rewritten.
+
+| Tool | Skills folder |
+| --- | --- |
+| `codex` | `~/.codex/skills` or `$CODEX_HOME/skills` |
+| `cursor` | `~/.cursor/skills` |
+| `gemini` | `~/.gemini/skills` |
+| `devin` | `~/.config/devin/skills` or `$XDG_CONFIG_HOME/devin/skills`, Windows included |
+| `vscode` | `~/.copilot/skills` |
+
+Claude Code gets the plgn plugin, which carries the skills. Claude Desktop has no skills folder.
+
+If you already use the skills CLI, this works too:
+
+```
+npx skills add PLGN-App/plgn-setup
+```
+
 ## One tool at a time
 
 | Command | Login step |
@@ -38,6 +60,7 @@ Colours are on only in a real terminal; piped output and `NO_COLOR` turn them of
 
 - `--yes` sets up every tool it finds, without asking.
 - `--dry-run` shows what it would do and changes nothing.
+- `--no-skills` connects the tools but does not install plgn's skills.
 - `--lang ar` prints everything in Arabic.
 
 You can run it again at any time. If plgn is already set, it writes nothing.
@@ -63,6 +86,7 @@ If it cannot change a file without risk, it does not touch it. It prints the sni
 
 ## Release (owner)
 
+0. After a plugin release, `gh workflow run generate.yml` refreshes `skills/`.
 1. `npm test`
-2. `npm pack --dry-run` lists only bin, src, README, CHANGELOG, LICENSE and package.json.
+2. `npm pack --dry-run` lists only bin, src, skills, README, CHANGELOG, LICENSE and package.json.
 3. The owner then publishes to npm and creates PLGN-App/plgn-setup, on his word.

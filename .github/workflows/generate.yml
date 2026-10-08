@@ -1,0 +1,68 @@
+name: generate
+
+# Regenerates plgn-setup's skills/ folder from the newest released plgn-claude
+# plugin (a vX.Y.Z tag), every 6 hours or on demand. skills/ is generated:
+# never edit it by hand, the next run would overwrite it. If the plugin has no
+# vX.Y.Z tag yet the job fails on purpose (unreleased work must not ship).
+# No secret is needed: the plugin repo is public and the push uses the
+# workflow's own token.
+# Kept in plgn-claude at _dev/portable-repo/generate.yml; plgn-setup holds the
+# same text at .github/workflows/generate.yml.
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: generate-skills
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: latest plugin tag
+        id: tag
+        run: |
+          tag=$(git ls-remote --tags --refs --sort=-v:refname https://github.com/PLGN-App/PLGN-CLAUDE 'refs/tags/v*' \
+            | sed 's#.*refs/tags/##' \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+            | head -n 1 || true)
+          if [ -z "$tag" ]; then
+            echo "PLGN-CLAUDE has no vX.Y.Z tag yet"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: generate skills
+        run: |
+          git clone --depth 1 --branch "${{ steps.tag.outputs.tag }}" https://github.com/PLGN-App/PLGN-CLAUDE "$RUNNER_TEMP/plgn-claude"
+          node "$RUNNER_TEMP/plgn-claude/_dev/scripts/portable.mjs" --out ./skills
+      - name: check the version
+        run: |
+          tag="${{ steps.tag.outputs.tag }}"
+          version=$(tr -d '[:space:]' < skills/VERSION)
+          if [ "$version" != "${tag#v}" ]; then
+            echo "skills/VERSION is $version but the tag is $tag"
+            exit 1
+          fi
+      - name: commit and push
+        run: |
+          version="${{ steps.tag.outputs.tag }}"
+          version="${version#v}"
+          git add -A skills
+          if git diff --cached --quiet; then
+            echo "skills unchanged"
+            exit 0
+          fi
+          git -c user.name=PLGN -c user.email=waslahapp993@gmail.com commit -m "skills: regenerated from plugin $version"
+          git push origin HEAD:main

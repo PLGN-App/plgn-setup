@@ -1,6 +1,6 @@
 {
   "name": "plgn-setup",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "One command that connects your AI tool to plgn.",
   "type": "module",
   "bin": {
@@ -12,6 +12,7 @@
   "files": [
     "bin",
     "src",
+    "skills",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
