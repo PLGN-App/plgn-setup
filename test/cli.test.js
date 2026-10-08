@@ -10,7 +10,8 @@ import picocolors from "picocolors";
 import { devinFile, legacyFile } from "../src/hosts/devin.js";
 import { HOST_IDS, MCP_URL } from "../src/constants.js";
 import { getHost, hosts } from "../src/hosts/index.js";
-import { installSkills } from "../src/skills.js";
+import { bundledSkills, installSkills, skillsDirFor } from "../src/skills.js";
+import { t } from "../src/i18n.js";
 
 // The version the CLI prints is package.json's, so a release bump never needs a test edit.
 const PKG_VERSION = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
@@ -19,7 +20,7 @@ import { fakeExec, tempHome } from "./helpers.js";
 const BIN = fileURLToPath(new URL("../bin/plgn-setup.js", import.meta.url));
 
 // Runs the CLI in-process on a temp home; collects both streams, never touches the network.
-async function cli(h, argv, { isTTY = false, prompt, answers, fetchOk = true, out = [] } = {}) {
+async function cli(h, argv, { isTTY = false, prompt, confirm = async () => false, answers, fetchOk = true, out = [] } = {}) {
   const err = [];
   const fetchCalls = [];
   const ctx = { ...h.ctx, exec: fakeExec(answers) };
@@ -29,6 +30,7 @@ async function cli(h, argv, { isTTY = false, prompt, answers, fetchOk = true, ou
     isTTY,
     color: false,
     prompt,
+    confirm,
     fetch: async (url, opts) => {
       fetchCalls.push(url);
       return { ok: fetchOk, status: fetchOk ? 200 : 500 };
@@ -387,5 +389,138 @@ test("bin output piped to a file has no escape codes", () => {
     assert.ok(!r.stderr.includes("\u001b"), r.stderr);
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+// The skills folder of a host on this temp home, and the bundled names (the count always comes from the bundle).
+const skillsDir = (h, id) => skillsDirFor(id, h.ctx);
+const bundledNames = () => bundledSkills().skills.map((s) => s.name);
+
+test("--yes installs the bundled skills and the login line still follows", async () => {
+  const h = tempHome();
+  try {
+    const r = await cli(h, ["codex", "--yes"]);
+    assert.equal(r.code, 0);
+    const dir = skillsDir(h, "codex");
+    for (const name of bundledNames()) assert.ok(fs.existsSync(path.join(dir, name, "SKILL.md")), name);
+    const done = r.out.indexOf("Codex CLI: plgn skills installed in");
+    const next = r.out.indexOf("Next, log in once in each tool:");
+    const login = r.out.indexOf("codex mcp login plgn");
+    assert.ok(done >= 0, r.out);
+    assert.ok(next > done, r.out);
+    assert.ok(login > done, r.out);
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("a second --yes run says the skills are already installed and asks nothing", async () => {
+  const h = tempHome();
+  try {
+    await cli(h, ["codex", "--yes"]);
+    const before = snapshot(h);
+    let asked = 0;
+    const r = await cli(h, ["codex", "--yes"], { isTTY: true, confirm: async () => (asked++, true) });
+    assert.equal(r.code, 0);
+    assert.match(r.out, /already installed/);
+    assert.equal(asked, 0);
+    assert.deepEqual(snapshot(h), before);
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("the question names the host and the bundled count, and yes installs", async () => {
+  const h = tempHome();
+  try {
+    const asked = [];
+    const r = await cli(h, ["codex"], {
+      isTTY: true,
+      confirm: async (message) => (asked.push(message), true),
+    });
+    assert.equal(r.code, 0);
+    assert.deepEqual(asked, [t("en", "skills.ask", { count: bundledSkills().skills.length, label: "Codex CLI" })]);
+    for (const name of bundledNames()) assert.ok(fs.existsSync(path.join(skillsDir(h, "codex"), name, "SKILL.md")), name);
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("a no, no TTY without --yes, and --no-skills all skip the skills", async () => {
+  const h = tempHome();
+  try {
+    const no = await cli(h, ["codex"], { isTTY: true, confirm: async () => false });
+    assert.equal(no.code, 0);
+    assert.match(no.out, /skills not installed/);
+    assert.match(no.out, /npx plgn-setup codex/);
+    assert.ok(h.get(".codex/config.toml").includes(MCP_URL));
+    assert.ok(!fs.existsSync(skillsDir(h, "codex")));
+
+    const noTty = await cli(h, ["codex"], { confirm: async () => assert.fail("must not ask without a TTY") });
+    assert.equal(noTty.code, 0);
+    assert.match(noTty.out, /skills not installed/);
+    assert.match(noTty.out, /npx plgn-setup codex/);
+    assert.ok(!fs.existsSync(skillsDir(h, "codex")));
+
+    const off = await cli(h, ["codex", "--yes", "--no-skills"]);
+    assert.equal(off.code, 0);
+    assert.ok(!off.out.split("\n").some((line) => /skills/.test(line)), off.out);
+    assert.ok(h.get(".codex/config.toml").includes(MCP_URL));
+    assert.ok(!fs.existsSync(skillsDir(h, "codex")));
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("--dry-run lists the skills it would copy and writes nothing", async () => {
+  const h = tempHome();
+  try {
+    h.put(".codex/config.toml", 'model = "x"\n');
+    const before = snapshot(h);
+    const r = await cli(h, ["codex", "--dry-run"], {
+      isTTY: true,
+      confirm: async () => assert.fail("--dry-run must not ask"),
+    });
+    assert.equal(r.code, 0);
+    assert.match(r.out, /would install/);
+    for (const name of bundledNames()) assert.ok(r.out.includes(name), name);
+    assert.deepEqual(snapshot(h), before);
+    assert.ok(!fs.existsSync(skillsDir(h, "codex")));
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("hosts without a skills folder get no skills step", async () => {
+  const h = tempHome();
+  try {
+    const r = await cli(h, ["claude-desktop", "--yes"]);
+    assert.doesNotMatch(r.out, /skills/i);
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("a skills folder that is a file prints an error line and exits 1", async () => {
+  const h = tempHome();
+  try {
+    h.put(".codex/skills", "not a folder");
+    const r = await cli(h, ["codex", "--yes"]);
+    assert.equal(r.code, 1);
+    assert.match(r.out, /could not install the skills/);
+    assert.ok(h.get(".codex/config.toml").includes(MCP_URL));
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("--help names --no-skills", async () => {
+  const h = tempHome();
+  try {
+    const r = await cli(h, ["--help"]);
+    assert.equal(r.code, 0);
+    assert.match(r.out, /--no-skills/);
+  } finally {
+    h.cleanup();
   }
 });

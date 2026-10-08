@@ -6,10 +6,12 @@ import { HOST_IDS } from "./constants.js";
 import { LANGS, t } from "./i18n.js";
 import { runDoctor, renderTable } from "./doctor.js";
 import { getHost, hosts } from "./hosts/index.js";
+import { bundledSkills, installSkills, skillsDirFor } from "./skills.js";
 
 const OPTIONS = {
   yes: { type: "boolean", short: "y" },
   "dry-run": { type: "boolean" },
+  "no-skills": { type: "boolean" },
   lang: { type: "string" },
   help: { type: "boolean", short: "h" },
   version: { type: "boolean", short: "v" },
@@ -36,12 +38,20 @@ async function clackPrompt(options, initialValues, lang) {
   return clack.isCancel(picked) ? null : picked;
 }
 
+// The real yes/no question; only the bin uses it. A cancel gives null.
+async function clackConfirm(message) {
+  const clack = await import("@clack/prompts");
+  const answer = await clack.confirm({ message });
+  return clack.isCancel(answer) ? null : answer;
+}
+
 export async function run(argv, io = {}) {
   const stdout = io.stdout ?? process.stdout;
   const stderr = io.stderr ?? process.stderr;
   const isTTY = io.isTTY ?? Boolean(process.stdin.isTTY && process.stdout.isTTY);
   const color = io.color ?? colorDefault();
   const prompt = io.prompt ?? clackPrompt;
+  const confirm = io.confirm ?? clackConfirm;
   const fetchFn = io.fetch ?? globalThis.fetch;
   const ctx = io.ctx ?? makeContext();
   const pc = picocolors.createColors(color);
@@ -123,6 +133,7 @@ export async function run(argv, io = {}) {
   }
 
   const results = [];
+  let skillsFailed = false;
   for (const host of chosen) {
     let result;
     try {
@@ -133,6 +144,7 @@ export async function run(argv, io = {}) {
     }
     results.push({ host, result });
     report(host, result);
+    await offerSkills(host, result);
   }
 
   function report(host, result) {
@@ -175,6 +187,43 @@ export async function run(argv, io = {}) {
     if (result.backup) out(t(lang, "backup", { file: result.backup }));
   }
 
+  // The skills step (Decisions 8-9): plan first, then ask only when something would be written.
+  async function offerSkills(host, result) {
+    if (values["no-skills"] || result.status === "error" || result.status === "manual") return;
+    if (!skillsDirFor(host.id, ctx) || bundledSkills().skills.length === 0) return;
+    const count = bundledSkills().skills.length;
+    const vars = { label: host.label, count, cmd: `${CMD} ${host.id}` };
+    try {
+      const plan = installSkills(ctx, host.id, { dryRun: true });
+      vars.dir = plan.dir;
+      const todo = [...plan.copied, ...plan.replaced];
+      if (todo.length === 0) {
+        out(t(lang, "skills.same", vars));
+        return;
+      }
+      if (dryRun) {
+        out(t(lang, "skills.would", vars));
+        out(`  ${todo.join(", ")}`);
+        return;
+      }
+      const yes = values.yes ? true : isTTY ? await confirm(t(lang, "skills.ask", vars), lang) : false;
+      if (!yes) {
+        out(t(lang, "skills.skipped", vars));
+        return;
+      }
+      const done = installSkills(ctx, host.id);
+      out(t(lang, "skills.done", { ...vars, copied: done.copied.length, replaced: done.replaced.length }));
+    } catch (e) {
+      // Only a real file-system error (a string code AND a syscall) is a result; anything else is a bug and throws.
+      if (typeof e?.code === "string" && typeof e?.syscall === "string") {
+        out(pc.red(t(lang, "skills.error", { ...vars, detail: String(e?.message ?? e) })));
+        skillsFailed = true;
+        return;
+      }
+      throw e;
+    }
+  }
+
   const forNext = results.filter(({ result }) => result.status !== "error");
   if (forNext.length > 0) {
     out();
@@ -185,5 +234,5 @@ export async function run(argv, io = {}) {
     out();
     out(t(lang, "dryRun"));
   }
-  return results.some(({ result }) => result.status === "error") ? 1 : 0;
+  return skillsFailed || results.some(({ result }) => result.status === "error") ? 1 : 0;
 }
