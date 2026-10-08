@@ -9,7 +9,7 @@ export const phrases = {
     intro: "plgn setup: connect your AI tools to plgn.",
     help:
       "Usage:\n" +
-      "  {cmd} [tool] [--yes] [--dry-run] [--lang en|ar]\n" +
+      "  {cmd} [tool] [--yes] [--dry-run] [--no-skills] [--lang en|ar]\n" +
       "  {cmd} doctor\n" +
       "Tools: {hosts}",
     pick: "Which tools should get plgn?",
@@ -71,13 +71,23 @@ export const phrases = {
     "check.manual": "connector",
     ioError: "{label}: stopped with an error: {detail}",
     wouldRun: "{label}: would run {cmd}",
+    "skills.ask": "Install plgn's {count} skills (commands and roles) for {label}?",
+    "skills.same": "{label}: plgn's {count} skills are already installed in {dir}",
+    "skills.would": "{label}: would install {count} plgn skills in {dir}:",
+    "skills.done": "{label}: plgn skills installed in {dir} ({copied} new, {replaced} updated)",
+    "skills.skipped": "{label}: skills not installed. To install them later, run {cmd}",
+    "skills.error": "{label}: could not install the skills: {detail}",
+    "doctor.skillsOk": "{count} of {total} plgn skills",
+    "doctor.skillsPartial": "{count} of {total} · run {cmd}",
+    "doctor.skillsNone": "none · run {cmd}",
+    "check.skills": "skills",
     // en: end
   },
   ar: {
     intro: "إعداد plgn: اربط أدوات الذكاء الاصطناعي عندك بـ plgn.",
     help:
       "الاستخدام:\n" +
-      "  {cmd} [tool] [--yes] [--dry-run] [--lang en|ar]\n" +
+      "  {cmd} [tool] [--yes] [--dry-run] [--no-skills] [--lang en|ar]\n" +
       "  {cmd} doctor\n" +
       "الأدوات: {hosts}",
     pick: "أي أدوات تريد ربطها بـ plgn؟",
@@ -139,6 +149,16 @@ export const phrases = {
     "check.manual": "الموصّل",
     ioError: "{label}: توقف بسبب خطأ: {detail}",
     wouldRun: "{label}: سيتم تشغيل {cmd}",
+    "skills.ask": "هل تريد تثبيت مهارات plgn (الأوامر والأدوار، وعددها {count}) في {label}؟",
+    "skills.same": "{label}: مهارات plgn مثبتة من قبل في {dir} (وعددها {count})",
+    "skills.would": "{label}: سيتم تثبيت مهارات plgn في {dir} (وعددها {count}):",
+    "skills.done": "{label}: تم تثبيت مهارات plgn في {dir} (الجديدة: {copied}، المحدّثة: {replaced})",
+    "skills.skipped": "{label}: لم يتم تثبيت المهارات. لتثبيتها لاحقًا، شغّل {cmd}",
+    "skills.error": "{label}: تعذّر تثبيت المهارات: {detail}",
+    "doctor.skillsOk": "{count} من {total} من مهارات plgn",
+    "doctor.skillsPartial": "{count} من {total} · شغّل {cmd}",
+    "doctor.skillsNone": "لا توجد مهارات · شغّل {cmd}",
+    "check.skills": "المهارات",
     // ar: end
   },
 };

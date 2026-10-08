@@ -79,3 +79,18 @@ test("the devin phrases name Windsurf as the old name and claudeDesktop has the 
   }
   assert.equal(phrases.ar["doctor.summaryFail"], "عدد المشاكل: {count}. شغّل {cmd} لإصلاحها.");
 });
+
+test("the skills phrases exist in both languages", () => {
+  const keys = ["skills.ask", "skills.same", "skills.would", "skills.done", "skills.skipped", "skills.error",
+    "doctor.skillsOk", "doctor.skillsPartial", "doctor.skillsNone", "check.skills"];
+  for (const lang of LANGS) {
+    for (const key of keys) assert.equal(typeof phrases[lang][key], "string", `${lang}.${key}`);
+  }
+  assert.equal(t("en", "skills.ask", { count: 7, label: "Codex CLI" }), "Install plgn's 7 skills (commands and roles) for Codex CLI?");
+  const ar = t("ar", "skills.ask", { count: 7, label: "Codex CLI" });
+  assert.ok(ar.includes("7") && ar.includes("Codex CLI"));
+});
+
+test("help names --no-skills in both languages", () => {
+  for (const lang of LANGS) assert.ok(phrases[lang].help.includes("--no-skills"), lang);
+});
