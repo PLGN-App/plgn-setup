@@ -4,12 +4,19 @@ import path from "node:path";
 import { makeContext } from "../src/context.js";
 
 // Answers keyed by "<name> <args joined by space>"; anything else is a quiet success.
+// An array answers each call in turn and then keeps giving its last answer.
 export function fakeExec(answers = {}) {
   const calls = [];
+  const seen = {};
   const exec = async (name, args = []) => {
     calls.push({ name, args });
     const key = [name, ...args].join(" ");
-    return answers[key] ?? { code: 0, stdout: "", stderr: "" };
+    const answer = answers[key];
+    if (Array.isArray(answer)) {
+      const n = (seen[key] = (seen[key] ?? 0) + 1);
+      return answer[Math.min(n, answer.length) - 1];
+    }
+    return answer ?? { code: 0, stdout: "", stderr: "" };
   };
   exec.calls = calls;
   return exec;

@@ -89,15 +89,65 @@ test("--yes sets up detected hosts, and a second run says already set and writes
   }
 });
 
-test("a named host is set up even when it is not detected", async () => {
+// Audit PL16: a named tool that is not installed used to get a file and a plain "plgn added".
+test("a named host that is not found is written only on --yes or a yes, and says it is not found", async () => {
   const h = tempHome();
   try {
     assert.equal(getHost("cursor").detect(h.ctx), false);
+    const noTty = await cli(h, ["cursor"]);
+    assert.equal(noTty.code, 1);
+    assert.match(noTty.out, /Cursor: not found on this computer, so nothing was written/);
+    assert.match(noTty.out, /npx plgn-setup cursor/);
+    assert.deepEqual(h.files(), []);
+
+    const asked = [];
+    const no = await cli(h, ["cursor"], { isTTY: true, confirm: async (m) => (asked.push(m), false) });
+    assert.equal(no.code, 1);
+    assert.deepEqual(asked, [t("en", "notFound.ask", { label: "Cursor" })]);
+    assert.ok(!h.exists(".cursor/mcp.json"));
+
     const r = await cli(h, ["cursor", "--yes"]);
     assert.equal(r.code, 0);
-    assert.ok(h.exists(".cursor/mcp.json"));
     assert.ok(h.get(".cursor/mcp.json").includes(MCP_URL));
+    assert.match(r.out, /Cursor: plgn added to /);
+    assert.match(r.out, /Cursor is not found on this computer: its config file is ready/);
     assert.ok(!h.exists(".codex/config.toml"));
+    // Found now (the folder exists): no question and no not-found line.
+    const again = await cli(h, ["cursor"], { isTTY: true, confirm: async () => assert.fail("must not ask") });
+    assert.equal(again.code, 0);
+    assert.doesNotMatch(again.out, /not found/);
+  } finally {
+    h.cleanup();
+  }
+});
+
+// Audit PL14: running setup again takes a newer plgn plugin into Claude Code and says so.
+test("claude-code: a second run updates the plgn plugin, names both versions and asks for a restart", async () => {
+  const h = tempHome();
+  try {
+    h.addBin("claude");
+    const list = (version) => ({ code: 0, stdout: JSON.stringify([{ id: "plgn@plgn", scope: "user", enabled: true, version }]), stderr: "" });
+    const r = await cli(h, ["claude-code", "--yes"], { answers: { "claude plugin list --json": [list("1.10.0"), list("1.18.5")] } });
+    assert.equal(r.code, 0);
+    assert.match(r.out, /Claude Code: ran claude plugin marketplace update plgn/);
+    assert.match(r.out, /Claude Code: ran claude plugin update plgn@plgn/);
+    assert.match(r.out, /the plgn plugin was updated from 1\.10\.0 to 1\.18\.5/);
+    assert.match(r.out, /Claude Code: restart it to use the new plgn plugin/);
+    const same = await cli(h, ["claude-code", "--yes"], { answers: { "claude plugin list --json": list("1.18.5") } });
+    assert.match(same.out, /Claude Code: already set, nothing changed/);
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("a dry run of a named host that is not found writes nothing and asks nothing", async () => {
+  const h = tempHome();
+  try {
+    const r = await cli(h, ["gemini", "--dry-run"], { isTTY: true, confirm: async () => assert.fail("must not ask") });
+    assert.equal(r.code, 0);
+    assert.match(r.out, /would add plgn/);
+    assert.doesNotMatch(r.out, /its config file is ready/);
+    assert.deepEqual(h.files(), []);
   } finally {
     h.cleanup();
   }
@@ -433,6 +483,7 @@ test("a second --yes run says the skills are already installed and asks nothing"
 test("the question names the host and the bundled count, and yes installs", async () => {
   const h = tempHome();
   try {
+    h.put(".codex/config.toml", 'model = "x"\n');
     const asked = [];
     const r = await cli(h, ["codex"], {
       isTTY: true,
@@ -449,6 +500,7 @@ test("the question names the host and the bundled count, and yes installs", asyn
 test("a no, no TTY without --yes, and --no-skills all skip the skills", async () => {
   const h = tempHome();
   try {
+    h.put(".codex/config.toml", 'model = "x"\n');
     const no = await cli(h, ["codex"], { isTTY: true, confirm: async () => false });
     assert.equal(no.code, 0);
     assert.match(no.out, /skills not installed/);

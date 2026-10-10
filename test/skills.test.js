@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { HOST_IDS } from "../src/constants.js";
 import { SKILLS_DIRS, skillsDirFor, bundledSkills, installSkills, skillsStatus } from "../src/skills.js";
+import { devinFile } from "../src/hosts/devin.js";
 import { tempHome } from "./helpers.js";
 
 const repoSkills = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "skills");
@@ -20,7 +21,7 @@ test("SKILLS_DIRS has one entry for every host id", () => {
   assert.deepEqual(Object.keys(SKILLS_DIRS).sort(), [...HOST_IDS].sort());
 });
 
-test("skillsDirFor gives the skills CLI 1.7.1 folders", () => {
+test("skillsDirFor gives the skills CLI 1.7.1 folders, and Devin's own folder beside its config", () => {
   for (const platform of ["win32", "linux"]) {
     const h = tempHome({ platform });
     try {
@@ -28,7 +29,10 @@ test("skillsDirFor gives the skills CLI 1.7.1 folders", () => {
       assert.equal(skillsDirFor("codex", h.ctx), j(".codex", "skills"));
       assert.equal(skillsDirFor("cursor", h.ctx), j(".cursor", "skills"));
       assert.equal(skillsDirFor("gemini", h.ctx), j(".gemini", "skills"));
-      assert.equal(skillsDirFor("devin", h.ctx), j(".config", "devin", "skills"));
+      // Audit PL15: Devin on Windows reads %APPDATA%\devin\skills, where its mcp_config.json is.
+      const devinSkills = platform === "win32" ? j("AppData", "Roaming", "devin", "skills") : j(".config", "devin", "skills");
+      assert.equal(skillsDirFor("devin", h.ctx), devinSkills);
+      assert.equal(path.dirname(skillsDirFor("devin", h.ctx)), path.dirname(devinFile(h.ctx)));
       assert.equal(skillsDirFor("vscode", h.ctx), j(".copilot", "skills"));
       assert.equal(skillsDirFor("claude-code", h.ctx), null);
       assert.equal(skillsDirFor("claude-desktop", h.ctx), null);
@@ -37,7 +41,7 @@ test("skillsDirFor gives the skills CLI 1.7.1 folders", () => {
       h.ctx.env.CODEX_HOME = j("x");
       h.ctx.env.XDG_CONFIG_HOME = j("y");
       assert.equal(skillsDirFor("codex", h.ctx), j("x", "skills"));
-      assert.equal(skillsDirFor("devin", h.ctx), j("y", "devin", "skills"));
+      assert.equal(skillsDirFor("devin", h.ctx), platform === "win32" ? devinSkills : j("y", "devin", "skills"));
     } finally {
       h.cleanup();
     }
@@ -92,6 +96,33 @@ test("installSkills replaces an old plgn folder and keeps every other folder", (
     assert.equal(h.get(`.codex/skills/${first}/SKILL.md`), fs.readFileSync(path.join(repoSkills, first, "SKILL.md"), "utf8"));
     assert.equal(h.get(".codex/skills/my-own-skill/SKILL.md"), "mine");
     assert.equal(h.get(".codex/skills/plgn-not-bundled/SKILL.md"), "keep me");
+  } finally {
+    h.cleanup();
+  }
+});
+
+// Audit PL19 (follow-up P3): `npx skills add` links each skill into the folder and updates it itself.
+test("installSkills leaves a linked plgn folder alone, even when it differs from the bundle", (t) => {
+  const h = tempHome();
+  try {
+    const first = bundledSkills().skills[0].name;
+    h.put(`.agents/skills/${first}/SKILL.md`, "newer, from the skills CLI");
+    fs.mkdirSync(path.join(h.home, ".codex", "skills"), { recursive: true });
+    const link = path.join(h.home, ".codex", "skills", first);
+    try {
+      fs.symlinkSync(path.join(h.home, ".agents", "skills", first), link, process.platform === "win32" ? "junction" : "dir");
+    } catch {
+      t.skip("cannot create a link here");
+      return;
+    }
+    const plan = installSkills(h.ctx, "codex", { dryRun: true });
+    assert.deepEqual(plan.linked, [first]);
+    assert.ok(!plan.replaced.includes(first) && !plan.copied.includes(first));
+    const r = installSkills(h.ctx, "codex");
+    assert.deepEqual(r.linked, [first]);
+    assert.ok(fs.lstatSync(link).isSymbolicLink());
+    assert.equal(h.get(`.agents/skills/${first}/SKILL.md`), "newer, from the skills CLI");
+    assert.equal(r.copied.length, bundledSkills().skills.length - 1);
   } finally {
     h.cleanup();
   }

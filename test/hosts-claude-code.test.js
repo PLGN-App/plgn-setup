@@ -35,16 +35,83 @@ test("claude-code runs marketplace add then install plgn@plgn when claude is on 
   }
 });
 
-test("claude-code is same and runs only the list when plgn is already installed", async () => {
+const MKT_UPDATE = "claude plugin marketplace update plgn";
+const UPDATE = `claude plugin update ${PLUGIN_ID}`;
+
+// Audit PL14: a second run used to say "already set" and never took a newer plgn plugin.
+test("claude-code updates plgn when it is already installed, and is same when nothing newer came", async () => {
   for (const enabled of [true, false]) {
-    const h = withClaude({ [LIST]: listOf({ id: "plgn@plgn", enabled }) });
+    const h = withClaude({ [LIST]: listOf({ id: "plgn@plgn", enabled, scope: "user", version: "1.18.5" }) });
     try {
       const r = await claudeCode.apply(h.ctx, { dryRun: false });
       assert.equal(r.status, "same");
-      assert.deepEqual(h.ctx.exec.calls.map(keyOf), [LIST]);
+      assert.deepEqual(h.ctx.exec.calls.map(keyOf), [LIST, MKT_UPDATE, UPDATE, LIST]);
+      assert.ok(!h.ctx.exec.calls.map(keyOf).includes(INSTALL));
     } finally {
       h.cleanup();
     }
+  }
+});
+
+test("claude-code says from which version to which when the update brought a new one", async () => {
+  const h = withClaude({
+    [LIST]: [
+      listOf({ id: "plgn@plgn", enabled: true, scope: "user", version: "1.10.0" }),
+      listOf({ id: "plgn@plgn", enabled: true, scope: "user", version: "1.18.5" }),
+    ],
+  });
+  try {
+    const r = await claudeCode.apply(h.ctx, { dryRun: false });
+    assert.equal(r.status, "updated");
+    assert.deepEqual(r.commands, [MKT_UPDATE, UPDATE]);
+    assert.deepEqual(r.note, { key: "claudeCode.updated", vars: { from: "1.10.0", to: "1.18.5" } });
+    assert.ok(claudeCode.nextStep("en", r).includes("restart"));
+    assert.ok(/[؀-ۿ]/.test(claudeCode.nextStep("ar", r)));
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("claude-code update: a dry run lists the two commands, a failed update is EXEC, a local install keeps its scope, a managed one is left alone", async () => {
+  const user = listOf({ id: "plgn@plgn", enabled: true, scope: "user", version: "1.0.0" });
+  const dry = withClaude({ [LIST]: user });
+  try {
+    const r = await claudeCode.apply(dry.ctx, { dryRun: true });
+    assert.equal(r.status, "updated");
+    assert.equal(r.dryRun, true);
+    assert.deepEqual(r.commands, [MKT_UPDATE, UPDATE]);
+    assert.deepEqual(dry.ctx.exec.calls.map(keyOf), [LIST]);
+  } finally {
+    dry.cleanup();
+  }
+  const failed = withClaude({ [LIST]: user, [UPDATE]: { code: 1, stdout: "", stderr: "network down\n" } });
+  try {
+    const r = await claudeCode.apply(failed.ctx, { dryRun: false });
+    assert.equal(r.status, "error");
+    assert.equal(r.error, "EXEC");
+    assert.equal(r.detail, "network down");
+  } finally {
+    failed.cleanup();
+  }
+  const here = process.cwd();
+  const local = withClaude({ [LIST]: listOf({ id: "plgn@other", enabled: true, scope: "local", projectPath: here }) });
+  try {
+    local.ctx.cwd = here;
+    await claudeCode.apply(local.ctx, { dryRun: false });
+    assert.deepEqual(local.ctx.exec.calls.map(keyOf).slice(1, 3), [
+      "claude plugin marketplace update other",
+      "claude plugin update plgn@other --scope local",
+    ]);
+  } finally {
+    local.cleanup();
+  }
+  const managed = withClaude({ [LIST]: listOf({ id: "plgn@plgn", enabled: true, scope: "managed" }) });
+  try {
+    const r = await claudeCode.apply(managed.ctx, { dryRun: false });
+    assert.equal(r.status, "same");
+    assert.deepEqual(managed.ctx.exec.calls.map(keyOf), [LIST]);
+  } finally {
+    managed.cleanup();
   }
 });
 
@@ -57,7 +124,8 @@ test("claude-code looks at every plgn entry and its scope", async () => {
   try {
     const r = await claudeCode.apply(h.ctx, { dryRun: false });
     assert.equal(r.status, "same");
-    assert.deepEqual(h.ctx.exec.calls.map(keyOf), [LIST]);
+    // The user-wide install is the one that counts here, so it is the one updated.
+    assert.deepEqual(h.ctx.exec.calls.map(keyOf), [LIST, MKT_UPDATE, UPDATE, LIST]);
     const row = (await claudeCode.doctor(h.ctx)).find((x) => x.check === "plugin");
     assert.equal(row.status, "ok");
   } finally {
@@ -237,7 +305,8 @@ test("claude-code ignores pseudo-ids (@skills-dir, @inline, @synced) and counts 
   const h2 = withClaude({ [LIST]: withReal, "claude --version": ok("2.1.300") });
   try {
     const r = await claudeCode.apply(h2.ctx, { dryRun: true });
-    assert.equal(r.status, "same");
+    assert.equal(r.status, "updated");
+    assert.deepEqual(r.commands, [MKT_UPDATE, UPDATE]);
     const row = (await claudeCode.doctor(h2.ctx)).find((x) => x.check === "plugin");
     assert.equal(row.key, "doctor.pluginOk");
   } finally {

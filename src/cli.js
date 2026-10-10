@@ -134,7 +134,16 @@ export async function run(argv, io = {}) {
 
   const results = [];
   let skillsFailed = false;
+  let notSetUp = false;
   for (const host of chosen) {
+    // A tool named on the command line but not found here (audit PL16): its file is written only on --yes or a
+    // yes to the question, and the line after the result says the tool is not installed.
+    const missing = name !== undefined && host.kind === "file" && !host.detect(ctx);
+    if (missing && !(await writeAnyway(host))) {
+      out(t(lang, "notFound.skipped", { label: host.label, cmd: `${CMD} ${host.id}` }));
+      notSetUp = true;
+      continue;
+    }
     let result;
     try {
       result = await host.apply(ctx, { dryRun });
@@ -144,7 +153,17 @@ export async function run(argv, io = {}) {
     }
     results.push({ host, result });
     report(host, result);
+    if (missing && !result.dryRun && (result.status === "added" || result.status === "updated")) {
+      out(t(lang, "notFound.written", { label: host.label }));
+    }
     await offerSkills(host, result);
+  }
+
+  // --yes and --dry-run need no question (a dry run writes nothing); without a terminal the answer is no.
+  async function writeAnyway(host) {
+    if (values.yes || dryRun) return true;
+    if (!isTTY) return false;
+    return (await confirm(t(lang, "notFound.ask", { label: host.label }), lang)) === true;
   }
 
   function report(host, result) {
@@ -174,6 +193,7 @@ export async function run(argv, io = {}) {
     }
     if (host.kind === "command") {
       for (const cmd of commands) out(t(lang, result.dryRun ? "wouldRun" : "ran", { ...vars, cmd }));
+      note();
       return;
     }
     if (result.dryRun) {
@@ -234,5 +254,5 @@ export async function run(argv, io = {}) {
     out();
     out(t(lang, "dryRun"));
   }
-  return skillsFailed || results.some(({ result }) => result.status === "error") ? 1 : 0;
+  return notSetUp || skillsFailed || results.some(({ result }) => result.status === "error") ? 1 : 0;
 }

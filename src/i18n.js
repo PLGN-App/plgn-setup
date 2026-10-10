@@ -79,8 +79,13 @@ export const phrases = {
     "skills.error": "{label}: could not install the skills: {detail}",
     "doctor.skillsOk": "{count} of {total} plgn skills",
     "doctor.skillsPartial": "{count} of {total} · run {cmd}",
-    "doctor.skillsNone": "none · run {cmd}",
+    "doctor.skillsNone": "not installed · to add them, run {cmd}",
     "check.skills": "skills",
+    "notFound.ask": "{label} is not found on this computer. Add plgn to its config file anyway?",
+    "notFound.skipped": "{label}: not found on this computer, so nothing was written. Install it and run {cmd} again, or add --yes to write its config anyway.",
+    "notFound.written": "{label} is not found on this computer: its config file is ready for when you install it.",
+    "claudeCode.updated": "{label}: the plgn plugin was updated from {from} to {to}",
+    "next.claudeCodeRestart": "Claude Code: restart it to use the new plgn plugin",
     // en: end
   },
   ar: {
@@ -157,8 +162,13 @@ export const phrases = {
     "skills.error": "{label}: تعذّر تثبيت المهارات: {detail}",
     "doctor.skillsOk": "{count} من {total} من مهارات plgn",
     "doctor.skillsPartial": "{count} من {total} · شغّل {cmd}",
-    "doctor.skillsNone": "لا توجد مهارات · شغّل {cmd}",
+    "doctor.skillsNone": "غير مثبتة · لإضافتها شغّل {cmd}",
     "check.skills": "المهارات",
+    "notFound.ask": "{label} غير موجودة على هذا الجهاز. هل تضيف plgn إلى ملف إعدادها رغم ذلك؟",
+    "notFound.skipped": "{label}: غير موجودة على هذا الجهاز، لذلك لم تُكتب أي ملفات. ثبّتها ثم شغّل {cmd} مرة أخرى، أو أضف --yes لكتابة ملف إعدادها رغم ذلك.",
+    "notFound.written": "{label} غير موجودة على هذا الجهاز: ملف إعدادها جاهز لحين تثبيتها.",
+    "claudeCode.updated": "{label}: تم تحديث إضافة plgn من {from} إلى {to}",
+    "next.claudeCodeRestart": "Claude Code: أعد تشغيله لاستخدام إضافة plgn الجديدة",
     // ar: end
   },
 };

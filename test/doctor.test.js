@@ -84,15 +84,17 @@ test("the skills row is red and partial when a skill folder is missing", async (
   }
 });
 
-test("the skills row is red none when no plgn skill is installed", async () => {
+// Audit PL17 (follow-up P2): --no-skills, or a no to the question, used to make every doctor run exit 1.
+test("the skills row is a skip that says how to add them when no plgn skill is installed", async () => {
   const h = tempHome();
   try {
     await cursor.apply(h.ctx, { dryRun: false });
     const out = await runDoctor(h.ctx, { hosts: [cursor], fetch: answer(200) });
     const row = out.rows.find((r) => r.id === "cursor" && r.check === "skills");
-    assert.equal(row.status, "fail");
+    assert.equal(row.status, "skip");
     assert.equal(row.key, "doctor.skillsNone");
     assert.equal(row.vars.cmd, "npx plgn-setup cursor");
+    assert.equal(out.ok, true);
   } finally {
     h.cleanup();
   }

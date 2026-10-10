@@ -46,7 +46,8 @@ const MARKS = { ok: "✔", fail: "✘", skip: "–" };
 const FIX_CMD = "npx plgn-setup";
 
 // One row for a detected host that has a skills folder: how many of the bundled skills are in it (Decision 11).
-// "Installed" means the SKILL.md is there; no byte or version compare.
+// "Installed" means the SKILL.md is there; no byte or version compare. None at all is a choice (--no-skills, or
+// a no to the question), so it is a skip row that says how to add them; only a partial set is a problem.
 function skillsRows(ctx, host) {
   try {
     if (!skillsDirFor(host.id, ctx) || !host.detect?.(ctx)) return [];
@@ -54,11 +55,12 @@ function skillsRows(ctx, host) {
     if (!status || status.total === 0) return [];
     const { installed, total } = status;
     const cmd = `${FIX_CMD} ${host.id}`;
+    const vars = { count: String(installed), total: String(total), cmd };
     if (installed === total) {
       return [{ id: host.id, check: "skills", status: "ok", key: "doctor.skillsOk", vars: { count: String(installed), total: String(total) } }];
     }
-    const key = installed === 0 ? "doctor.skillsNone" : "doctor.skillsPartial";
-    return [{ id: host.id, check: "skills", status: "fail", key, vars: { count: String(installed), total: String(total), cmd } }];
+    if (installed === 0) return [{ id: host.id, check: "skills", status: "skip", key: "doctor.skillsNone", vars }];
+    return [{ id: host.id, check: "skills", status: "fail", key: "doctor.skillsPartial", vars }];
   } catch (e) {
     return [{ id: host.id, check: "skills", status: "fail", key: "doctor.error", vars: { detail: String(e?.message ?? e) } }];
   }

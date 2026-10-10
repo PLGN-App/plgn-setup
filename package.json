@@ -1,6 +1,6 @@
 {
   "name": "plgn-setup",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "One command that connects your AI tool to plgn.",
   "type": "module",
   "bin": {
